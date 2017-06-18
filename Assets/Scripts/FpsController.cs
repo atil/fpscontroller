@@ -8,8 +8,8 @@ public class FpsController : MonoBehaviour
     private Transform _groundCheckRaysParent;
 
     private const float GroundAccelerationCoeff = 500.0f;
-    public float AirAccelCoeff = 5f;
-    public float AirDecelCoeff = 5f;
+    public float AirAccelCoeff = 2.5f;
+    public float AirDecelCoeff = 2.5f;
     private const float MaxSpeedAlongOneDimension = 15.0f;
     private const float Friction = 30;
     private const float FrictionSpeedThreshold = 1f; // Just stop if under this speed
@@ -23,6 +23,9 @@ public class FpsController : MonoBehaviour
     private float _mousePitch;
     private float _mouseYaw;
 
+    private bool _isGroundedInPrevFrame;
+    private bool _isGonnaJump;
+
     void Start()
 	{
         _transform = transform;
@@ -34,21 +37,33 @@ public class FpsController : MonoBehaviour
 	    var inputX = Input.GetAxis("Horizontal");
 	    var inputZ = Input.GetAxis("Vertical");
 
-        var isGrounded = IsGrounded();
+        var isGroundedInThisFrame = IsGrounded();
+        var justLanded = !_isGroundedInPrevFrame && isGroundedInThisFrame;
+        _isGroundedInPrevFrame = isGroundedInThisFrame; 
 
-        // GetKey() allows just keeping on Space to jump repeatedly
-        // May not be Q3 but even QL does it like this now
-        var jumpQuery = Input.GetKey(KeyCode.Space) && isGrounded;
+        if (Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
+        {
+            _isGonnaJump = true;
+        }
+        else if (Input.GetKeyUp(KeyCode.Space))
+        {
+            _isGonnaJump = false;
+        }
 
 	    var wishDir = _transform.TransformDirection(new Vector3(inputX, 0, inputZ));
-        if (isGrounded)
+        if (isGroundedInThisFrame)
         {
             _currentVelocity = Accelerate(_currentVelocity, wishDir, GroundAccelerationCoeff, dt);
-            _currentVelocity = ApplyFriction(_currentVelocity, dt);
+
+            if (!justLanded)
+            {
+                _currentVelocity = ApplyFriction(_currentVelocity, dt);
+            }
 
             _currentVelocity.y = 0;
-            if (jumpQuery)
+            if (_isGonnaJump)
             {
+                _isGonnaJump = false;
                 _currentVelocity.y = JumpStrength;
             }
         }
@@ -56,7 +71,6 @@ public class FpsController : MonoBehaviour
         {
             var airAccel = Vector3.Dot(_currentVelocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
             _currentVelocity = Accelerate(_currentVelocity, wishDir, airAccel, dt);
-
             _currentVelocity.y -= Gravity * dt;
         }
 
@@ -66,6 +80,12 @@ public class FpsController : MonoBehaviour
         _mousePitch -= MouseSensitivity * Input.GetAxis("Mouse Y");
         _mouseYaw += MouseSensitivity * Input.GetAxis("Mouse X");
         _transform.rotation = Quaternion.Euler(_mousePitch, _mouseYaw, 0f);
+
+        // Reset player
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            _transform.position = Vector3.one;
+        }
     }
 
     private bool IsGrounded()
@@ -83,10 +103,9 @@ public class FpsController : MonoBehaviour
 
     private Vector3 Accelerate(Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
     {
-        var projSpeed = Vector3.Dot(playerVelocity, accelDir); // Vector projection of Current velocity onto accelDir.
-        var accelAmount = accelCoeff * dt; // Accelerated velocity in direction of movment
+        var projSpeed = Vector3.Dot(playerVelocity, accelDir);
+        var accelAmount = accelCoeff * dt;
 
-        // If necessary, truncate the accelerated velocity so the vector projection does not exceed max_velocity
         if (projSpeed + accelAmount > MaxSpeedAlongOneDimension)
         {
             accelAmount = MaxSpeedAlongOneDimension - projSpeed;
@@ -111,7 +130,6 @@ public class FpsController : MonoBehaviour
         }
 
         var dropRate = dropAmount / speed;
-
         return new Vector3(playerVelocity.x * dropRate, 0, playerVelocity.z * dropRate);
     }
 
