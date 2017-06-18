@@ -7,16 +7,16 @@ public class FpsController : MonoBehaviour
     [SerializeField]
     private Transform _groundCheckRaysParent;
 
-    private const float GroundAccelerationCoeff = 500.0f;
-    public float AirAccelCoeff = 2.5f;
-    public float AirDecelCoeff = 2.5f;
-    private const float MaxSpeedAlongOneDimension = 15.0f;
-    private const float Friction = 30;
-    private const float FrictionSpeedThreshold = 1f; // Just stop if under this speed
-    private const float GroundedCheckRayLength = 0.2f;
-    private const float MouseSensitivity = 2.0f;
-    private const float JumpStrength = 10f;
-    private const float Gravity = 25f;
+    public float GroundAccelerationCoeff = 500.0f;
+    public float AirAccelCoeff = 1f;
+    public float AirDecelCoeff = 1f;
+    public float MaxSpeedAlongOneDimension = 15.0f;
+    public float Friction = 30;
+    public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
+    public float GroundedCheckRayLength = 0.2f;
+    public float MouseSensitivity = 2.0f;
+    public float JumpStrength = 10f;
+    public float Gravity = 25f;
 
     private Transform _transform;
     private Vector3 _currentVelocity;
@@ -30,12 +30,18 @@ public class FpsController : MonoBehaviour
 	{
         _transform = transform;
 	}
-	
+
+    void OnGUI()
+    {
+        var ups = _currentVelocity;
+        ups.y = 0;
+        GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  (Mathf.Round(ups.magnitude * 100) / 100).ToString());
+    }
+
     void Update()
     {
 	    var dt = Time.deltaTime;
-	    var inputX = Input.GetAxis("Horizontal");
-	    var inputZ = Input.GetAxis("Vertical");
+        var moveInput = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
 
         var isGroundedInThisFrame = IsGrounded();
         var justLanded = !_isGroundedInPrevFrame && isGroundedInThisFrame;
@@ -50,10 +56,10 @@ public class FpsController : MonoBehaviour
             _isGonnaJump = false;
         }
 
-	    var wishDir = _transform.TransformDirection(new Vector3(inputX, 0, inputZ));
-        if (isGroundedInThisFrame)
+	    var wishDir = _transform.TransformDirection(moveInput);
+        if (isGroundedInThisFrame) // Ground move
         {
-            _currentVelocity = Accelerate(_currentVelocity, wishDir, GroundAccelerationCoeff, dt);
+            _currentVelocity = Accelerate(_currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
             if (!justLanded)
             {
@@ -67,10 +73,10 @@ public class FpsController : MonoBehaviour
                 _currentVelocity.y = JumpStrength;
             }
         }
-        else
+        else // Air move
         {
             var airAccel = Vector3.Dot(_currentVelocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
-            _currentVelocity = Accelerate(_currentVelocity, wishDir, airAccel, dt);
+            _currentVelocity = Accelerate(_currentVelocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
             _currentVelocity.y -= Gravity * dt;
         }
 
@@ -84,7 +90,8 @@ public class FpsController : MonoBehaviour
         // Reset player
         if (Input.GetKeyDown(KeyCode.R))
         {
-            _transform.position = Vector3.one;
+            _transform.position = Vector3.up * 1.5f;
+            _currentVelocity = Vector3.forward;
         }
     }
 
@@ -101,14 +108,14 @@ public class FpsController : MonoBehaviour
         return false;
     }
 
-    private Vector3 Accelerate(Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
+    private Vector3 Accelerate(Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
     {
         var projSpeed = Vector3.Dot(playerVelocity, accelDir);
         var accelAmount = accelCoeff * dt;
 
-        if (projSpeed + accelAmount > MaxSpeedAlongOneDimension)
+        if (projSpeed + accelAmount > maxSpeedAlongOneDimension)
         {
-            accelAmount = MaxSpeedAlongOneDimension - projSpeed;
+            accelAmount = maxSpeedAlongOneDimension - projSpeed;
         }
 
         return playerVelocity + accelDir * accelAmount;
