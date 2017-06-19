@@ -29,6 +29,7 @@ public class FpsController : MonoBehaviour
     void Start()
 	{
         _transform = transform;
+        Cursor.lockState = CursorLockMode.Locked;
 	}
 
     void OnGUI()
@@ -63,7 +64,12 @@ public class FpsController : MonoBehaviour
 
             if (!justLanded)
             {
-                _currentVelocity = ApplyFriction(_currentVelocity, dt);
+                var frictionCoeff = Friction;
+                if (_isGonnaJump)
+                {
+                    frictionCoeff *= 0.5f;
+                }
+                _currentVelocity = ApplyFriction(_currentVelocity, frictionCoeff, dt);
             }
 
             _currentVelocity.y = 0;
@@ -121,7 +127,7 @@ public class FpsController : MonoBehaviour
         return playerVelocity + accelDir * accelAmount;
     }
 
-    private Vector3 ApplyFriction(Vector3 playerVelocity, float dt)
+    private Vector3 ApplyFriction(Vector3 playerVelocity, float frictionCoeff, float dt)
     {
         var speed = playerVelocity.magnitude;
         if (speed <= 0.00001)
@@ -129,8 +135,8 @@ public class FpsController : MonoBehaviour
             return playerVelocity;
         }
 
-        var frictionCoeff = Mathf.Max(speed, FrictionSpeedThreshold);
-        var dropAmount = speed - (frictionCoeff * Friction * dt);
+        var downLimit = Mathf.Max(speed, FrictionSpeedThreshold);
+        var dropAmount = speed - (downLimit * frictionCoeff * dt);
         if (dropAmount < 0)
         {
             dropAmount = 0;
