@@ -14,22 +14,24 @@ public class FpsController : MonoBehaviour
     public float Friction = 30;
     public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
     public float GroundedCheckRayLength = 0.2f;
-    public float MouseSensitivity = 2.0f;
     public float JumpStrength = 10f;
     public float Gravity = 25f;
 
+    private MouseLook _mouseLook;
     private Transform _transform;
     private Vector3 _currentVelocity;
-    private float _mousePitch;
-    private float _mouseYaw;
 
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
+
 
     void Start()
 	{
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
+        Application.targetFrameRate = 60;
+
+        _mouseLook = new MouseLook(_transform, Camera.main.transform);
 	}
 
     void OnGUI()
@@ -37,6 +39,13 @@ public class FpsController : MonoBehaviour
         var ups = _currentVelocity;
         ups.y = 0;
         GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  (Mathf.Round(ups.magnitude * 100) / 100).ToString());
+
+        var mid = new Vector2(Screen.width / 2f, Screen.height / 2f);
+        var v = _transform.InverseTransformVector(_currentVelocity * 10);
+        if (v.magnitude > 0)
+        {
+            Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
+        }
     }
 
     void Update()
@@ -88,17 +97,14 @@ public class FpsController : MonoBehaviour
 
         _transform.position += _currentVelocity * dt;
 
-        // TODO: Do pitch only on Camera object
-        _mousePitch -= MouseSensitivity * Input.GetAxis("Mouse Y");
-        _mouseYaw += MouseSensitivity * Input.GetAxis("Mouse X");
-        _transform.rotation = Quaternion.Euler(_mousePitch, _mouseYaw, 0f);
-
+        _mouseLook.Update();
         // Reset player
         if (Input.GetKeyDown(KeyCode.R))
         {
             _transform.position = Vector3.up * 1.5f;
             _currentVelocity = Vector3.forward;
         }
+
     }
 
     private bool IsGrounded()
