@@ -74,7 +74,7 @@ public class FpsController : MonoBehaviour
             if (!justLanded)
             {
                 var frictionCoeff = Friction;
-                if (_isGonnaJump)
+                if (_isGonnaJump) // Apply half friction just before the jump
                 {
                     frictionCoeff *= 0.5f;
                 }
@@ -92,12 +92,14 @@ public class FpsController : MonoBehaviour
         {
             var airAccel = Vector3.Dot(_currentVelocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
             _currentVelocity = Accelerate(_currentVelocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
+
             _currentVelocity.y -= Gravity * dt;
         }
 
         _transform.position += _currentVelocity * dt;
 
         _mouseLook.Update();
+
         // Reset player
         if (Input.GetKeyDown(KeyCode.R))
         {
@@ -123,11 +125,16 @@ public class FpsController : MonoBehaviour
     private Vector3 Accelerate(Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
     {
         var projSpeed = Vector3.Dot(playerVelocity, accelDir);
-        var accelAmount = accelCoeff * dt;
-
-        if (projSpeed + accelAmount > maxSpeedAlongOneDimension)
+        var addSpeed = maxSpeedAlongOneDimension - projSpeed;
+        if (addSpeed <= 0)
         {
-            accelAmount = maxSpeedAlongOneDimension - projSpeed;
+            return playerVelocity;
+        }
+
+        var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
+        if (accelAmount > addSpeed)
+        {
+            accelAmount = addSpeed;
         }
 
         return playerVelocity + accelDir * accelAmount;
