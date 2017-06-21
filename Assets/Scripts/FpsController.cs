@@ -69,7 +69,7 @@ public class FpsController : MonoBehaviour
 	    var wishDir = _transform.TransformDirection(moveInput);
         if (isGroundedInThisFrame) // Ground move
         {
-            _currentVelocity = Accelerate(_currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
+            Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
             if (!justLanded)
             {
@@ -78,7 +78,7 @@ public class FpsController : MonoBehaviour
                 {
                     frictionCoeff *= 0.5f;
                 }
-                _currentVelocity = ApplyFriction(_currentVelocity, frictionCoeff, dt);
+                ApplyFriction(ref _currentVelocity, frictionCoeff, dt);
             }
 
             _currentVelocity.y = 0;
@@ -91,7 +91,7 @@ public class FpsController : MonoBehaviour
         else // Air move
         {
             var airAccel = Vector3.Dot(_currentVelocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
-            _currentVelocity = Accelerate(_currentVelocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
+            Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
 
             _currentVelocity.y -= Gravity * dt;
         }
@@ -122,13 +122,13 @@ public class FpsController : MonoBehaviour
         return false;
     }
 
-    private Vector3 Accelerate(Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
+    private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
     {
         var projSpeed = Vector3.Dot(playerVelocity, accelDir);
         var addSpeed = maxSpeedAlongOneDimension - projSpeed;
         if (addSpeed <= 0)
         {
-            return playerVelocity;
+            return;
         }
 
         var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
@@ -137,15 +137,15 @@ public class FpsController : MonoBehaviour
             accelAmount = addSpeed;
         }
 
-        return playerVelocity + accelDir * accelAmount;
+        playerVelocity += accelDir * accelAmount;
     }
 
-    private Vector3 ApplyFriction(Vector3 playerVelocity, float frictionCoeff, float dt)
+    private void ApplyFriction(ref Vector3 playerVelocity, float frictionCoeff, float dt)
     {
         var speed = playerVelocity.magnitude;
         if (speed <= 0.00001)
         {
-            return playerVelocity;
+            return;
         }
 
         var downLimit = Mathf.Max(speed, FrictionSpeedThreshold);
@@ -156,7 +156,7 @@ public class FpsController : MonoBehaviour
         }
 
         var dropRate = dropAmount / speed;
-        return new Vector3(playerVelocity.x * dropRate, 0, playerVelocity.z * dropRate);
+        playerVelocity *= dropRate;
     }
 
 }
