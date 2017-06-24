@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UnityEngine;
 
 public class FpsController : MonoBehaviour
@@ -16,6 +17,7 @@ public class FpsController : MonoBehaviour
     public float GroundedCheckRayLength = 0.2f;
     public float JumpStrength = 10f;
     public float Gravity = 25f;
+    public float AirControlPrecision = 8f;
 
     private MouseLook _mouseLook;
     private Transform _transform;
@@ -42,7 +44,7 @@ public class FpsController : MonoBehaviour
 
         var mid = new Vector2(Screen.width / 2f, Screen.height / 2f);
         var v = _transform.InverseTransformVector(_currentVelocity * 10);
-        if (v.magnitude > 0)
+        if (v.WithY(0).magnitude > 0)
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
@@ -71,7 +73,7 @@ public class FpsController : MonoBehaviour
         {
             Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
-            if (!justLanded)
+            if (!justLanded) // Don't apply friction if just landed
             {
                 var frictionCoeff = Friction;
                 if (_isGonnaJump) // Apply half friction just before the jump
@@ -92,6 +94,11 @@ public class FpsController : MonoBehaviour
         {
             var airAccel = Vector3.Dot(_currentVelocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
             Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
+
+            if (Mathf.Abs(moveInput.z) > 0.0001)
+            {
+                ApplyAirControl(ref _currentVelocity, wishDir);
+            }
 
             _currentVelocity.y -= Gravity * dt;
         }
@@ -157,6 +164,23 @@ public class FpsController : MonoBehaviour
 
         var dropRate = dropAmount / speed;
         playerVelocity *= dropRate;
+    }
+
+    private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir)
+    {
+        var playerDirHorz = playerVelocity.WithY(0).normalized;
+        var playerSpeedHorz = playerVelocity.WithY(0).magnitude;
+
+        var dot = Vector3.Dot(playerDirHorz, accelDir);
+        if (dot > 0)
+        {
+            var k = AirControlPrecision * dot * dot * Time.deltaTime;
+            playerDirHorz = playerDirHorz * playerSpeedHorz + accelDir * k;
+            playerDirHorz.Normalize();
+
+            playerVelocity = (playerDirHorz * playerSpeedHorz).WithY(playerVelocity.y);
+        }
+
     }
 
 }
