@@ -10,8 +10,8 @@ public class FpsController : MonoBehaviour
     private CapsuleCollider _collisionElement;
 
     public float GroundAccelerationCoeff = 500.0f;
-    public float AirAccelCoeff = 1f;
-    public float AirDecelCoeff = 1f;
+    public float AirAccelCoeff = 0.2f;
+    public float AirDecelCoeff = 0.2f;
     public float MaxSpeedAlongOneDimension = 15.0f;
     public float Friction = 30;
     public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
@@ -23,12 +23,13 @@ public class FpsController : MonoBehaviour
     private Transform _transform;
     private Vector3 _currentVelocity;
 
-    [SerializeField]
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
     private readonly Collider[] _overlappingColliders = new Collider[10];
     private int _playerLayer;
+
+    private Vector3 _wishDirDebug;
 
     void Start()
 	{
@@ -44,7 +45,8 @@ public class FpsController : MonoBehaviour
     {
         var ups = _currentVelocity;
         ups.y = 0;
-        GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  (Mathf.Round(ups.magnitude * 100) / 100).ToString());
+        GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  
+            (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
         var mid = new Vector2(Screen.width / 2f, Screen.height / 2f);
         var v = _transform.InverseTransformVector(_currentVelocity * 10);
@@ -52,12 +54,19 @@ public class FpsController : MonoBehaviour
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
+
+        var w = _transform.InverseTransformDirection(_wishDirDebug) * 100;
+        if (w.magnitude > 0.001)
+        {
+            Drawing.DrawLine(mid, mid + Vector2.up * -w.z + Vector2.right * w.x, Color.blue, 2f);
+        }
     }
 
     void Update()
     {
 	    var dt = Time.deltaTime;
-        var moveInput = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
+        var moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
+        moveInput.Normalize();
 
         var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
 
@@ -71,6 +80,7 @@ public class FpsController : MonoBehaviour
         }
 
 	    var wishDir = _transform.TransformDirection(moveInput);
+        _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
         if (_isGroundedInThisFrame) // Ground move
         {
             Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
@@ -82,6 +92,7 @@ public class FpsController : MonoBehaviour
                 {
                     frictionCoeff *= 0.5f;
                 }
+
                 ApplyFriction(ref _currentVelocity, frictionCoeff, dt);
             }
 
@@ -123,14 +134,22 @@ public class FpsController : MonoBehaviour
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
     {
+        // How much speed we already have in the direction we want to speed up
         var projSpeed = Vector3.Dot(playerVelocity, accelDir);
+
+        // How much speed we need to add (in that direction) to reach max speed
         var addSpeed = maxSpeedAlongOneDimension - projSpeed;
         if (addSpeed <= 0)
         {
             return;
         }
 
+        // Actual acceleration
+        // maxSpeed * dt => real amount
+        // accelCoeff => ad hoc approach to make it feel better
         var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
+
+        // If we are accelerating more than in a way that we exceed maxSpeedInOneDimension, crop it to max
         if (accelAmount > addSpeed)
         {
             accelAmount = addSpeed;
