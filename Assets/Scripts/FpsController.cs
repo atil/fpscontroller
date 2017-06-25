@@ -36,7 +36,7 @@ public class FpsController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
         Application.targetFrameRate = 60;
         _mouseLook = new MouseLook(_transform, Camera.main.transform);
-        _playerLayer = 1 << LayerMask.NameToLayer("PlayerCollider");
+        _playerLayer = LayerMask.NameToLayer("PlayerCollider");
 
 	}
 
