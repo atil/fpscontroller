@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Video;
 
 public class FpsController : MonoBehaviour
 {
@@ -25,7 +26,7 @@ public class FpsController : MonoBehaviour
 
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
-
+    private readonly Collider[] _overlappingColliders = new Collider[] {};
 
     void Start()
 	{
@@ -105,6 +106,8 @@ public class FpsController : MonoBehaviour
 
         _transform.position += _currentVelocity * dt;
 
+        ResolveCollisions(ref _currentVelocity);
+
         _mouseLook.Update();
 
         // Reset player
@@ -113,6 +116,8 @@ public class FpsController : MonoBehaviour
             _transform.position = Vector3.up * 1.5f;
             _currentVelocity = Vector3.forward;
         }
+
+        //Debug.Log(_currentVelocity + " == " + _currentVelocity.magnitude);
 
     }
 
@@ -183,4 +188,27 @@ public class FpsController : MonoBehaviour
 
     }
 
+    private void ResolveCollisions(ref Vector3 playerVelocity)
+    {
+        var cap = GetComponent<CapsuleCollider>();
+        var p0 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.down + cap.radius * Vector3.up;
+        var p1 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.up + cap.radius * Vector3.down;
+
+        Physics.OverlapCapsuleNonAlloc(p0, p1, cap.radius, _overlappingColliders);
+
+        foreach (var overlappingCollider in _overlappingColliders)
+        {
+            Vector3 collisionNormal;
+            float collisionDistance;
+
+            if (Physics.ComputePenetration(cap, cap.transform.position, cap.transform.rotation,
+                overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
+                out collisionNormal, out collisionDistance))
+            {
+                _transform.position += collisionNormal * collisionDistance;
+                playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
+            }
+        }
+
+    }
 }
