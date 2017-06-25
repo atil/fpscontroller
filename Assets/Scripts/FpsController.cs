@@ -9,15 +9,15 @@ public class FpsController : MonoBehaviour
     [SerializeField]
     private CapsuleCollider _collisionElement;
 
-    public float GroundAccelerationCoeff = 500.0f;
-    public float AirAccelCoeff = 0.2f;
-    public float AirDecelCoeff = 0.2f;
-    public float MaxSpeedAlongOneDimension = 15.0f;
-    public float Friction = 30;
-    public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
-    public float JumpStrength = 10f;
-    public float Gravity = 25f;
-    public float AirControlPrecision = 8f;
+    private const float GroundAccelerationCoeff = 500.0f;
+    private const float AirAccelCoeff = 0.3f;
+    private const float AirDecelCoeff = 1f;
+    private const float MaxSpeedAlongOneDimension = 10f;
+    private const float Friction = 20;
+    private const float FrictionSpeedThreshold = 0.5f; // Just stop if under this speed
+    private const float JumpStrength = 10f;
+    private const float Gravity = 25f;
+    private const float AirControlPrecision = 8f;
 
     private MouseLook _mouseLook;
     private Transform _transform;
@@ -26,7 +26,7 @@ public class FpsController : MonoBehaviour
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
-    private readonly Collider[] _overlappingColliders = new Collider[10];
+    private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
     private int _playerLayer;
 
     private Vector3 _wishDirDebug;
@@ -35,7 +35,7 @@ public class FpsController : MonoBehaviour
 	{
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
-        Application.targetFrameRate = 60;
+        Application.targetFrameRate = 60; // Need to work around this
         _mouseLook = new MouseLook(_transform, Camera.main.transform);
         _playerLayer = LayerMask.NameToLayer("PlayerCollider");
 
@@ -81,6 +81,7 @@ public class FpsController : MonoBehaviour
 
 	    var wishDir = _transform.TransformDirection(moveInput);
         _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
+
         if (_isGroundedInThisFrame) // Ground move
         {
             Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
@@ -144,7 +145,7 @@ public class FpsController : MonoBehaviour
             return;
         }
 
-        // Actual acceleration
+        // How much we are gonna increase our speed
         // maxSpeed * dt => real amount
         // accelCoeff => ad hoc approach to make it feel better
         var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
@@ -155,7 +156,7 @@ public class FpsController : MonoBehaviour
             accelAmount = addSpeed;
         }
 
-        playerVelocity += accelDir * accelAmount;
+        playerVelocity += accelDir * accelAmount; // Magic happens here
     }
 
     private void ApplyFriction(ref Vector3 playerVelocity, float frictionCoeff, float dt)
@@ -173,8 +174,7 @@ public class FpsController : MonoBehaviour
             dropAmount = 0;
         }
 
-        var dropRate = dropAmount / speed;
-        playerVelocity *= dropRate;
+        playerVelocity *= dropAmount / speed; // Reduce the velocity by a certain percent
     }
 
     private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir)
@@ -186,9 +186,12 @@ public class FpsController : MonoBehaviour
         if (dot > 0)
         {
             var k = AirControlPrecision * dot * dot * Time.deltaTime;
+            
+            // A little bit closer to accelDir
             playerDirHorz = playerDirHorz * playerSpeedHorz + accelDir * k;
             playerDirHorz.Normalize();
 
+            // Assign new direction, without touching the vertical speed
             playerVelocity = (playerDirHorz * playerSpeedHorz).WithY(playerVelocity.y);
         }
 
@@ -213,7 +216,8 @@ public class FpsController : MonoBehaviour
             Vector3 collisionNormal;
             float collisionDistance;
 
-            if (Physics.ComputePenetration(_collisionElement, _collisionElement.transform.position, _collisionElement.transform.rotation,
+            if (Physics.ComputePenetration(
+                _collisionElement, _collisionElement.transform.position, _collisionElement.transform.rotation,
                 overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
                 out collisionNormal, out collisionDistance))
             {
@@ -222,6 +226,8 @@ public class FpsController : MonoBehaviour
                     _isGroundedInThisFrame = true;
 
                     // If dealing with the ground, don't resolve collision that much
+                    // Because if we fully resolve ground penetration, _isGrounded will be false
+                    // Which will result in AirMove and gravity being applied
                     collisionDistance *= 0.9f;
                 }
 
