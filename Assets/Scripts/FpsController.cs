@@ -7,11 +7,6 @@ using UnityEngine.Video;
 public class FpsController : MonoBehaviour
 {
     [SerializeField]
-    private Transform _groundCheckRaysParent;
-
-    [SerializeField] private Transform _groundCheckSphereCastOrigin;
-
-    [SerializeField]
     private CapsuleCollider _collisionElement;
 
     public float GroundAccelerationCoeff = 500.0f;
@@ -20,8 +15,6 @@ public class FpsController : MonoBehaviour
     public float MaxSpeedAlongOneDimension = 15.0f;
     public float Friction = 30;
     public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
-    public float GroundedCheckRayLength = 0.2f;
-    public float GroundedCheckSphereDistance = 0.2f;
     public float JumpStrength = 10f;
     public float Gravity = 25f;
     public float AirControlPrecision = 8f;
@@ -30,16 +23,20 @@ public class FpsController : MonoBehaviour
     private Transform _transform;
     private Vector3 _currentVelocity;
 
+    [SerializeField]
+    private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
     private readonly Collider[] _overlappingColliders = new Collider[10];
+    private int _playerLayer;
 
     void Start()
 	{
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
-
+        Application.targetFrameRate = 60;
         _mouseLook = new MouseLook(_transform, Camera.main.transform);
+        _playerLayer = 1 << LayerMask.NameToLayer("PlayerCollider");
 
 	}
 
@@ -62,9 +59,7 @@ public class FpsController : MonoBehaviour
 	    var dt = Time.deltaTime;
         var moveInput = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
 
-        var isGroundedInThisFrame = IsGrounded();
-        var justLanded = !_isGroundedInPrevFrame && isGroundedInThisFrame;
-        _isGroundedInPrevFrame = isGroundedInThisFrame; 
+        var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
 
         if (Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
         {
@@ -76,7 +71,7 @@ public class FpsController : MonoBehaviour
         }
 
 	    var wishDir = _transform.TransformDirection(moveInput);
-        if (isGroundedInThisFrame) // Ground move
+        if (_isGroundedInThisFrame) // Ground move
         {
             Accelerate(ref _currentVelocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
@@ -116,49 +111,14 @@ public class FpsController : MonoBehaviour
 
         _mouseLook.Update();
 
+        _isGroundedInPrevFrame = _isGroundedInThisFrame;
+
         // Reset player
         if (Input.GetKeyDown(KeyCode.R))
         {
             _transform.position = Vector3.up * 1.5f;
             _currentVelocity = Vector3.forward;
         }
-
-
-    }
-
-    private bool IsGrounded()
-    {
-        //foreach (Transform t in _groundCheckRaysParent)
-        //{
-        //    var ray = new Ray(t.position, Vector3.down);
-        //    if (Physics.Raycast(ray, GroundedCheckRayLength))
-        //    {
-        //        Debug.DrawRay(ray.origin, ray.direction, Color.red);
-        //    }
-        //    else
-        //    {
-        //        Debug.DrawRay(ray.origin, ray.direction, Color.blue);
-        //    }
-        //}
-
-        //foreach (Transform t in _groundCheckRaysParent)
-        //{
-        //    var ray = new Ray(t.position, Vector3.down);
-        //    if (Physics.Raycast(ray, GroundedCheckRayLength))
-        //    {
-        //        return true;
-        //    }
-        //}
-        //return false;
-
-        if (Physics.SphereCast(new Ray(_groundCheckSphereCastOrigin.position, Vector3.down),
-            _collisionElement.radius * 0.5f, 
-            GroundedCheckSphereDistance,
-            ~(1 << LayerMask.NameToLayer("PlayerCollider"))))
-        {
-            return true;
-        }
-        return false;
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
@@ -217,16 +177,15 @@ public class FpsController : MonoBehaviour
 
     private void ResolveCollisions(ref Vector3 playerVelocity)
     {
-        var cap = _collisionElement;
-        var p0 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.down + cap.radius * Vector3.up;
-        var p1 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.up + cap.radius * Vector3.down;
-
-        // Wish Unity has an overload of this function which takes a Capsule
-        // Why do we have to extract these points when we already have a capsuleCollider at hand?
-        Physics.OverlapCapsuleNonAlloc(p0, p1, cap.radius, _overlappingColliders, ~(1 << LayerMask.NameToLayer("PlayerCollider")));
+        _isGroundedInThisFrame = false;
+        
+        // Get nearby colliders
+        Physics.OverlapSphereNonAlloc(_collisionElement.transform.position, _collisionElement.height / 2f,
+            _overlappingColliders, ~(1 << _playerLayer));
 
         foreach (var overlappingCollider in _overlappingColliders)
         {
+            // Skip empty slots
             if (overlappingCollider == null)
             {
                 continue;
@@ -235,16 +194,28 @@ public class FpsController : MonoBehaviour
             Vector3 collisionNormal;
             float collisionDistance;
 
-            if (Physics.ComputePenetration(cap, cap.transform.position, cap.transform.rotation,
+            if (Physics.ComputePenetration(_collisionElement, _collisionElement.transform.position, _collisionElement.transform.rotation,
                 overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
                 out collisionNormal, out collisionDistance))
             {
-                if (Vector3.Dot(collisionNormal, Vector3.up) > 0.9)
+                if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
+                {
+                    _isGroundedInThisFrame = true;
+
+                    // If dealing with the ground, don't resolve collision that much
+                    collisionDistance *= 0.9f;
+                }
+
+                // Ignore very small penetrations
+                if (collisionDistance < 0.001)
                 {
                     continue;
                 }
 
+                // Get outta that collider!
                 _transform.position += collisionNormal * collisionDistance;
+
+                // Crop down the velocity component which is in the direction of penetration
                 playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
             }
         }
