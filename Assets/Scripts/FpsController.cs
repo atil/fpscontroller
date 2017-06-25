@@ -9,6 +9,11 @@ public class FpsController : MonoBehaviour
     [SerializeField]
     private Transform _groundCheckRaysParent;
 
+    [SerializeField] private Transform _groundCheckSphereCastOrigin;
+
+    [SerializeField]
+    private CapsuleCollider _collisionElement;
+
     public float GroundAccelerationCoeff = 500.0f;
     public float AirAccelCoeff = 1f;
     public float AirDecelCoeff = 1f;
@@ -16,6 +21,7 @@ public class FpsController : MonoBehaviour
     public float Friction = 30;
     public float FrictionSpeedThreshold = 1f; // Just stop if under this speed
     public float GroundedCheckRayLength = 0.2f;
+    public float GroundedCheckSphereDistance = 0.2f;
     public float JumpStrength = 10f;
     public float Gravity = 25f;
     public float AirControlPrecision = 8f;
@@ -26,15 +32,15 @@ public class FpsController : MonoBehaviour
 
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
-    private readonly Collider[] _overlappingColliders = new Collider[] {};
+    private readonly Collider[] _overlappingColliders = new Collider[10];
 
     void Start()
 	{
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
-        Application.targetFrameRate = 60;
 
         _mouseLook = new MouseLook(_transform, Camera.main.transform);
+
 	}
 
     void OnGUI()
@@ -45,7 +51,7 @@ public class FpsController : MonoBehaviour
 
         var mid = new Vector2(Screen.width / 2f, Screen.height / 2f);
         var v = _transform.InverseTransformVector(_currentVelocity * 10);
-        if (v.WithY(0).magnitude > 0)
+        if (v.WithY(0).magnitude > 0.0001)
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
@@ -117,19 +123,40 @@ public class FpsController : MonoBehaviour
             _currentVelocity = Vector3.forward;
         }
 
-        //Debug.Log(_currentVelocity + " == " + _currentVelocity.magnitude);
 
     }
 
     private bool IsGrounded()
     {
-        foreach (Transform t in _groundCheckRaysParent)
+        //foreach (Transform t in _groundCheckRaysParent)
+        //{
+        //    var ray = new Ray(t.position, Vector3.down);
+        //    if (Physics.Raycast(ray, GroundedCheckRayLength))
+        //    {
+        //        Debug.DrawRay(ray.origin, ray.direction, Color.red);
+        //    }
+        //    else
+        //    {
+        //        Debug.DrawRay(ray.origin, ray.direction, Color.blue);
+        //    }
+        //}
+
+        //foreach (Transform t in _groundCheckRaysParent)
+        //{
+        //    var ray = new Ray(t.position, Vector3.down);
+        //    if (Physics.Raycast(ray, GroundedCheckRayLength))
+        //    {
+        //        return true;
+        //    }
+        //}
+        //return false;
+
+        if (Physics.SphereCast(new Ray(_groundCheckSphereCastOrigin.position, Vector3.down),
+            _collisionElement.radius * 0.5f, 
+            GroundedCheckSphereDistance,
+            ~(1 << LayerMask.NameToLayer("PlayerCollider"))))
         {
-            var ray = new Ray(t.position, Vector3.down);
-            if (Physics.Raycast(ray, GroundedCheckRayLength))
-            {
-                return true;
-            }
+            return true;
         }
         return false;
     }
@@ -190,14 +217,21 @@ public class FpsController : MonoBehaviour
 
     private void ResolveCollisions(ref Vector3 playerVelocity)
     {
-        var cap = GetComponent<CapsuleCollider>();
+        var cap = _collisionElement;
         var p0 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.down + cap.radius * Vector3.up;
         var p1 = cap.transform.position + cap.center + (cap.height / 2f) * Vector3.up + cap.radius * Vector3.down;
 
-        Physics.OverlapCapsuleNonAlloc(p0, p1, cap.radius, _overlappingColliders);
+        // Wish Unity has an overload of this function which takes a Capsule
+        // Why do we have to extract these points when we already have a capsuleCollider at hand?
+        Physics.OverlapCapsuleNonAlloc(p0, p1, cap.radius, _overlappingColliders, ~(1 << LayerMask.NameToLayer("PlayerCollider")));
 
         foreach (var overlappingCollider in _overlappingColliders)
         {
+            if (overlappingCollider == null)
+            {
+                continue;
+            }
+
             Vector3 collisionNormal;
             float collisionDistance;
 
@@ -205,10 +239,16 @@ public class FpsController : MonoBehaviour
                 overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
                 out collisionNormal, out collisionDistance))
             {
+                if (Vector3.Dot(collisionNormal, Vector3.up) > 0.9)
+                {
+                    continue;
+                }
+
                 _transform.position += collisionNormal * collisionDistance;
                 playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
             }
         }
 
     }
+
 }
