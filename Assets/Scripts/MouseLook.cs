@@ -28,7 +28,7 @@ public class MouseLook
 
         _pitch = Mathf.Clamp(_pitch, _pitchLimits.x, _pitchLimits.y);
 
-        _body.rotation = Quaternion.Euler(0f, _yaw, 0f);
-        _cam.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
+        //_body.rotation = Quaternion.Euler(0f, _yaw, 0f);
+        _cam.localRotation = Quaternion.Euler(_pitch, _yaw, 0f);
     }
 }
