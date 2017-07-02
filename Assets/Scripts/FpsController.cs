@@ -24,8 +24,6 @@ public class FpsController : MonoBehaviour
     private Transform _transform;
     [SerializeField]
     private Vector3 _velocity;
-    [SerializeField]
-    private Vector3 _position;
     private Vector3 _moveInput;
     private Transform _camTransform;
 
@@ -45,7 +43,6 @@ public class FpsController : MonoBehaviour
         Application.targetFrameRate = 60; // Need to work around this
         _mouseLook = new MouseLook(_transform, Camera.main.transform);
         _playerLayer = LayerMask.NameToLayer("PlayerCollider");
-        _position = _transform.position;
         _camTransform = Camera.main.transform;
 	}
 
@@ -56,7 +53,7 @@ public class FpsController : MonoBehaviour
         GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
-        var mid = new Vector2(Screen.width / 2, Screen.height / 2);
+        var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division
         var v = _camTransform.InverseTransformVector(_velocity * 10);
         if (v.WithY(0).magnitude > 0.0001)
         {
@@ -75,13 +72,11 @@ public class FpsController : MonoBehaviour
 	    var dt = Time.fixedDeltaTime;
         var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
 
-	    var wishDir = _camTransform.TransformDirection(_moveInput);
+	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput);
         _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
 
         if (_isGroundedInThisFrame) // Ground move
         {
-            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
-
             if (!justLanded) // Don't apply friction if just landed
             {
                 var frictionCoeff = Friction;
@@ -93,6 +88,7 @@ public class FpsController : MonoBehaviour
                 ApplyFriction(ref _velocity, frictionCoeff, dt);
             }
 
+            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
             _velocity.y = 0;
             if (_isGonnaJump)
@@ -238,11 +234,6 @@ public class FpsController : MonoBehaviour
                 if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
                 {
                     _isGroundedInThisFrame = true;
-
-                    // If dealing with the ground, don't resolve collision that much
-                    // Because if we fully resolve ground penetration, _isGrounded will be false
-                    // Which will result in AirMove and gravity being applied
-                    //collisionDistance *= 0.9f;
                 }
 
                 // Ignore very small penetrations

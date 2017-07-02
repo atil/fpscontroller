@@ -20,4 +20,19 @@ public static class Util
     {
         return new Vector3(v.x, v.y, z);
     }
+
+    public static Vector3 ToHorizontal(this Vector3 v)
+    {
+        return Vector3.ProjectOnPlane(v, Vector3.up);
+    }
+
+    public static Vector3 TransformDirectionHorizontal(this Transform t, Vector3 v)
+    {
+        return t.TransformDirection(v).ToHorizontal().normalized;
+    }
+
+    public static Vector3 InverseTransformVectorHorizontal(this Transform t, Vector3 v)
+    {
+        return t.TransformDirection(v).ToHorizontal().normalized;
+    }
 }
