@@ -9,6 +9,8 @@ public class FpsController : MonoBehaviour
     [SerializeField]
     private CapsuleCollider _collisionElement;
 
+    [SerializeField]
+    private LayerMask _excludedLayers;
 
     public float GroundAccelerationCoeff = 500.0f;
     public float AirAccelCoeff = 0.3f;
@@ -41,16 +43,17 @@ public class FpsController : MonoBehaviour
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
         Application.targetFrameRate = 60; // Need to work around this
-        _mouseLook = new MouseLook(_transform, Camera.main.transform);
         _playerLayer = LayerMask.NameToLayer("PlayerCollider");
         _camTransform = Camera.main.transform;
+        _mouseLook = new MouseLook(_camTransform);
 	}
 
     void OnGUI()
     {
+        // Print current horizontal speed
         var ups = _velocity;
         ups.y = 0;
-        GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  
+        GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 50, 100, 40),
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
         var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division
@@ -135,12 +138,7 @@ public class FpsController : MonoBehaviour
 
         _mouseLook.Update();
 
-        // Reset player
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            _transform.position = Vector3.up * 1.5f;
-            _velocity = Vector3.forward;
-        }
+        
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
@@ -213,7 +211,7 @@ public class FpsController : MonoBehaviour
         
         // Get nearby colliders
         Physics.OverlapSphereNonAlloc(_collisionElement.transform.position, _collisionElement.height / 2f,
-            _overlappingColliders, ~(1 << _playerLayer));
+            _overlappingColliders, ~_excludedLayers);
 
         foreach (var overlappingCollider in _overlappingColliders)
         {
@@ -252,4 +250,11 @@ public class FpsController : MonoBehaviour
 
     }
 
+    public void ResetAt(Transform t)
+    {
+        _transform.position = t.position + Vector3.up * 0.5f;
+        _camTransform.position = _transform.position;
+        _mouseLook.LookAt(t.position + t.forward);
+        _velocity = t.TransformDirection(Vector3.forward);
+    }
 }

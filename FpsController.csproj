@@ -90,6 +90,9 @@
     <Compile Include="Assets\Scripts\FpsController.cs" />
     <Compile Include="Assets\Scripts\GMSPlayer.cs" />
     <Compile Include="Assets\Scripts\MouseLook.cs" />
+    <Compile Include="Assets\Scripts\Race\RaceLane.cs" />
+    <Compile Include="Assets\Scripts\Race\RaceTrigger.cs" />
+    <Compile Include="Assets\Scripts\Ui.cs" />
     <Compile Include="Assets\Scripts\Util.cs" />
   </ItemGroup>
   <ItemGroup>

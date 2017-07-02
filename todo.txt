@@ -2,3 +2,4 @@
 - fov with speed
 - head bob
 - snap camera if too far
+- cam forced lookAt
