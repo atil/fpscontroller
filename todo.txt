@@ -1,0 +1,4 @@
+- replay
+- fov with speed
+- head bob
+- snap camera if too far
