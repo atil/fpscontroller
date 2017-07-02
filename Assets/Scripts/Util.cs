@@ -31,8 +31,8 @@ public static class Util
         return t.TransformDirection(v).ToHorizontal().normalized;
     }
 
-    public static Vector3 InverseTransformVectorHorizontal(this Transform t, Vector3 v)
+    public static Vector3 InverseTransformDirectionHorizontal(this Transform t, Vector3 v)
     {
-        return t.TransformDirection(v).ToHorizontal().normalized;
+        return t.InverseTransformDirection(v).ToHorizontal().normalized;
     }
 }

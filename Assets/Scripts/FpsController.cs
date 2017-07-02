@@ -54,13 +54,13 @@ public class FpsController : MonoBehaviour
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
         var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division
-        var v = _camTransform.InverseTransformVector(_velocity * 10);
+        var v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * _velocity.WithY(0).magnitude * 10f;
         if (v.WithY(0).magnitude > 0.0001)
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
 
-        var w = _camTransform.InverseTransformDirection(_wishDirDebug) * 100;
+        var w = _camTransform.InverseTransformDirectionHorizontal(_wishDirDebug) * 100;
         if (w.magnitude > 0.001)
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -w.z + Vector2.right * w.x, Color.blue, 2f);
