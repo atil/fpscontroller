@@ -56,7 +56,7 @@ public class FpsController : MonoBehaviour
         GUI.Box(new Rect(Screen.width/2f-50, Screen.height / 2f + 50, 100, 40),  
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
-        var mid = new Vector2(Screen.width / 2f, Screen.height / 2f);
+        var mid = new Vector2(Screen.width / 2, Screen.height / 2);
         var v = _camTransform.InverseTransformVector(_velocity * 10);
         if (v.WithY(0).magnitude > 0.0001)
         {
