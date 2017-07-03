@@ -24,7 +24,7 @@ public class Ui : MonoBehaviour
 
     IEnumerator WaitAndHideText()
     {
-        yield return new WaitForSeconds(3f);
+        yield return new WaitForSeconds(5f);
         Timer.gameObject.SetActive(false);
     }
 

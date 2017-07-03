@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class RaceLane : MonoBehaviour
 {
+    public static RaceLane CurrentLane;
+
     public RaceTrigger StartTrigger;
     public RaceTrigger EndTrigger;
     public GameObject RestartPoint;
@@ -20,9 +22,10 @@ public class RaceLane : MonoBehaviour
 
         StartTrigger.Triggered += () =>
         {
-            if (!_isRunning)
+            if (!_isRunning && CurrentLane == null)
             {
                 _isRunning = true;
+                CurrentLane = this;
             }
         };
 
@@ -38,7 +41,7 @@ public class RaceLane : MonoBehaviour
     public void EndRace(bool forced)
     {
         _isRunning = false;
-        _elapsedTime = 0f;
+        CurrentLane = null;
         if (forced)
         {
             _ui.HideTimer();
@@ -47,6 +50,7 @@ public class RaceLane : MonoBehaviour
         {
             _ui.ShowResultWith(_elapsedTime);
         }
+        _elapsedTime = 0f;
     }
 
     void Update()

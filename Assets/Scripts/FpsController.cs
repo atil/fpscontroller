@@ -138,6 +138,11 @@ public class FpsController : MonoBehaviour
 
         _mouseLook.Update();
 
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            _transform.position = Vector3.zero + Vector3.up * 2f;
+            _velocity = Vector3.forward;
+        }
         
     }
 
