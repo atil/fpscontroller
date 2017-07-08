@@ -246,13 +246,8 @@ public class FpsController : MonoBehaviour
                         _isGroundedInThisFrame = true;
                     }
 
-                    if (coll is BoxCollider)
-                    {
-                        Debug.DrawLine(coll.bounds.center, coll.bounds.center + (collisionNormal * collisionDistance), Color.red, 10f);
-                    }
-
                     // Ignore very small penetrations
-                    if (collisionDistance < 0.001)
+                    if (collisionDistance < 0.01)
                     {
                         continue;
                     }
