@@ -16,15 +16,15 @@ public class FpsController : MonoBehaviour
     private LayerMask _excludedLayers;
 
     [Header("Movement")]
-    public float GroundAccelerationCoeff = 500.0f;
-    public float AirAccelCoeff = 0.3f;
-    public float AirDecelCoeff = 1f;
-    public float MaxSpeedAlongOneDimension = 10f;
-    public float Friction = 20;
-    public float FrictionSpeedThreshold = 0.5f; // Just stop if under this speed
-    public float JumpStrength = 10f;
-    public float Gravity = 25f;
-    public float AirControlPrecision = 8f;
+    private const float GroundAccelerationCoeff = 500.0f;
+    private const float AirAccelCoeff = 0.8f;
+    private const float AirDecelCoeff = 1.5f;
+    private const float MaxSpeedAlongOneDimension = 8f;
+    private const float Friction = 15;
+    private const float FrictionSpeedThreshold = 0.5f; // Just stop if under this speed
+    private const float JumpStrength = 10f;
+    private const float Gravity = 25f;
+    private const float AirControlPrecision = 8f;
 
     private MouseLook _mouseLook;
     private Transform _transform;
@@ -45,12 +45,12 @@ public class FpsController : MonoBehaviour
     void Start()
 	{
         _transform = transform;
-        Cursor.lockState = CursorLockMode.Locked;
-        Application.targetFrameRate = 60; // Need to work around this
+        Application.targetFrameRate = 60; // Don't know why I did that
         _camTransform = Camera.main.transform;
         _mouseLook = new MouseLook(_camTransform);
 	}
 
+    // Only for debug drawing
     void OnGUI()
     {
         // Print current horizontal speed
@@ -59,13 +59,17 @@ public class FpsController : MonoBehaviour
         GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 50, 100, 40),
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
-        var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division
+        // Draw horizontal speed as a line
+        // Should remain integer division, otherwise GUI drawing gets screwed up
+        // ... was a pain in the ass figuring this out
+        var mid = new Vector2(Screen.width / 2, Screen.height / 2); 
         var v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * _velocity.WithY(0).magnitude * 10f;
         if (v.WithY(0).magnitude > 0.0001)
         {
             Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
 
+        // Draw input direction
         var w = _camTransform.InverseTransformDirectionHorizontal(_wishDirDebug) * 100;
         if (w.magnitude > 0.001)
         {
@@ -73,25 +77,20 @@ public class FpsController : MonoBehaviour
         }
     }
 
+    // All logic, including player displacement, happens here
     void FixedUpdate()
     {
 	    var dt = Time.fixedDeltaTime;
         var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
 
-	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput);
+	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
 
         if (_isGroundedInThisFrame) // Ground move
         {
-            if (!justLanded) // Don't apply friction if just landed
+            if (!justLanded && !_isGonnaJump) // Don't apply friction if just landed
             {
-                var frictionCoeff = Friction;
-                if (_isGonnaJump) // Apply half friction just before the jump
-                {
-                    frictionCoeff *= 0f;
-                }
-
-                ApplyFriction(ref _velocity, frictionCoeff, dt);
+                ApplyFriction(ref _velocity, Friction, dt);
             }
 
             Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
@@ -105,27 +104,35 @@ public class FpsController : MonoBehaviour
         }
         else // Air move
         {
-            var airAccel = Vector3.Dot(_velocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
-            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, airAccel, dt);
+            // If the input is not in alignment with the current velocity
+            // then slow down instead of speeding up
+            var coeff = Vector3.Dot(_velocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
+
+            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, coeff, dt);
 
             if (Mathf.Abs(_moveInput.z) > 0.0001)
             {
-                ApplyAirControl(ref _velocity, wishDir);
+                ApplyAirControl(ref _velocity, wishDir, dt);
             }
 
             _velocity.y -= Gravity * dt;
         }
 
-        _transform.position += _velocity * dt;
+        _transform.position += _velocity * dt; // Actual displacement
 
-        ResolveCollisions(ref _velocity);
+        var collisionDisplacement = ResolveCollisions(ref _velocity);
+        _transform.position += collisionDisplacement; // Pushing out of environment
 
         _isGroundedInPrevFrame = _isGroundedInThisFrame;
     }
 
+    // Input taking happens here
+    // We also bring the camera (which is a separate entity) to the controller position here
     void Update()
     {
-	    var dt = Time.deltaTime;
+        Cursor.lockState = CursorLockMode.Locked; // Keep doing this. We don't want cursor anywher just yet
+
+        var dt = Time.deltaTime;
         _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
 
         if (Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
@@ -140,7 +147,7 @@ public class FpsController : MonoBehaviour
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
 
         var mouseLookForward = _mouseLook.Update();
-        _transform.rotation = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up);
+        _transform.rotation = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up); // 
 
         // Reset player
         if (Input.GetKeyDown(KeyCode.R))
@@ -164,7 +171,7 @@ public class FpsController : MonoBehaviour
         }
 
         // How much we are gonna increase our speed
-        // maxSpeed * dt => real amount
+        // maxSpeed * dt => the real deal. a = v * (1 / t)
         // accelCoeff => ad hoc approach to make it feel better
         var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
 
@@ -195,7 +202,7 @@ public class FpsController : MonoBehaviour
         playerVelocity *= dropAmount / speed; // Reduce the velocity by a certain percent
     }
 
-    private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir)
+    private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir, float dt)
     {
         var playerDirHorz = playerVelocity.WithY(0).normalized;
         var playerSpeedHorz = playerVelocity.WithY(0).magnitude;
@@ -203,7 +210,7 @@ public class FpsController : MonoBehaviour
         var dot = Vector3.Dot(playerDirHorz, accelDir);
         if (dot > 0)
         {
-            var k = AirControlPrecision * dot * dot * Time.deltaTime;
+            var k = AirControlPrecision * dot * dot * dt;
             
             // A little bit closer to accelDir
             playerDirHorz = playerDirHorz * playerSpeedHorz + accelDir * k;
@@ -215,7 +222,7 @@ public class FpsController : MonoBehaviour
 
     }
 
-    private void ResolveCollisions(ref Vector3 playerVelocity)
+    private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
         _isGroundedInThisFrame = false;
         
@@ -223,38 +230,54 @@ public class FpsController : MonoBehaviour
         Physics.OverlapSphereNonAlloc(_transform.position, _height + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
-        foreach (var overlappingCollider in _overlappingColliders)
+        var totalDisplacement = Vector3.zero;
+        var checkedColliderIndices = new HashSet<int>();
+        foreach (var playerColl in _collisionElements)
         {
-            // Skip empty slots
-            if (overlappingCollider == null)
+            // If the player is intersecting with that environment collider, separate them
+            for (var i = 0; i < _overlappingColliders.Length; i++)
             {
-                continue;
-            }
+                // Two player colliders shouldn't resolve collision with the same environment collider
+                if (checkedColliderIndices.Contains(i))
+                {
+                    continue;
+                }
 
-            foreach (var coll in _collisionElements)
-            {
+                var envColl = _overlappingColliders[i];
+                
+                // Skip empty slots
+                if (envColl == null)
+                {
+                    continue;
+                }
+
                 Vector3 collisionNormal;
                 float collisionDistance;
 
                 if (Physics.ComputePenetration(
-                    coll, coll.transform.position, coll.transform.rotation,
-                    overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
+                    playerColl, playerColl.transform.position, playerColl.transform.rotation,
+                    envColl, envColl.transform.position, envColl.transform.rotation,
                     out collisionNormal, out collisionDistance))
                 {
+                    // If the collision pointing up to some degree
+                    // then it means we're standing on something
                     if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
                     {
                         _isGroundedInThisFrame = true;
                     }
 
                     // Ignore very small penetrations
+                    // Required for standing still on slopes
+                    // ... still far from perfect though
                     if (collisionDistance < 0.01)
                     {
                         continue;
                     }
 
+                    checkedColliderIndices.Add(i);
+
                     // Get outta that collider!
-                    _transform.position += collisionNormal * collisionDistance;
-                    //totalDisplacement += collisionNormal * collisionDistance;
+                    totalDisplacement += collisionNormal * collisionDistance;
 
                     // Crop down the velocity component which is in the direction of penetration
                     playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
@@ -262,14 +285,18 @@ public class FpsController : MonoBehaviour
             }
         }
 
+
         for (var i = 0; i < _overlappingColliders.Length; i++)
         {
             _overlappingColliders[i] = null;
         }
+
+        return totalDisplacement;
     }
 
     public void ResetAt(Transform t)
     {
+        // Teleport this guy to the said spot
         _transform.position = t.position + Vector3.up * 0.5f;
         _camTransform.position = _transform.position;
         _mouseLook.LookAt(t.position + t.forward);

@@ -26,16 +26,18 @@ public class MouseLook
 
         _pitch = Mathf.Clamp(_pitch, _pitchLimits.x, _pitchLimits.y);
 
+        // Don't slerp. We want sharp rotation
         _cam.localRotation = Quaternion.Euler(_pitch, _yaw, 0f);
 
         return _cam.forward;
 
     }
 
+    // Look at straight ahead to the given world position
     public void LookAt(Vector3 worldPos)
     {
         var q = Quaternion.LookRotation(worldPos - _cam.position);
         _yaw = q.eulerAngles.y;
-        _pitch = 0;
+        _pitch = 0; 
     }
 }
