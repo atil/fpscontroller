@@ -19,7 +19,7 @@ public class MouseLook
         _pitchLimits = new Vector2(-89f, 89f);
     }
 
-    public void Update()
+    public Vector3 Update()
     {
         _pitch -= Sensitivity * Input.GetAxis("Mouse Y");
         _yaw += Sensitivity * Input.GetAxis("Mouse X");
@@ -27,6 +27,9 @@ public class MouseLook
         _pitch = Mathf.Clamp(_pitch, _pitchLimits.x, _pitchLimits.y);
 
         _cam.localRotation = Quaternion.Euler(_pitch, _yaw, 0f);
+
+        return _cam.forward;
+
     }
 
     public void LookAt(Vector3 worldPos)

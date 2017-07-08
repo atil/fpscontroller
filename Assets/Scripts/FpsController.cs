@@ -7,11 +7,15 @@ using UnityEngine.Video;
 public class FpsController : MonoBehaviour
 {
     [SerializeField]
-    private CapsuleCollider _collisionElement;
+    private float _height;
+
+    [SerializeField]
+    private List<Collider> _collisionElements;
 
     [SerializeField]
     private LayerMask _excludedLayers;
 
+    [Header("Movement")]
     public float GroundAccelerationCoeff = 500.0f;
     public float AirAccelCoeff = 0.3f;
     public float AirDecelCoeff = 1f;
@@ -33,8 +37,8 @@ public class FpsController : MonoBehaviour
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
+
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
-    private int _playerLayer;
 
     private Vector3 _wishDirDebug;
 
@@ -43,7 +47,6 @@ public class FpsController : MonoBehaviour
         _transform = transform;
         Cursor.lockState = CursorLockMode.Locked;
         Application.targetFrameRate = 60; // Need to work around this
-        _playerLayer = LayerMask.NameToLayer("PlayerCollider");
         _camTransform = Camera.main.transform;
         _mouseLook = new MouseLook(_camTransform);
 	}
@@ -136,9 +139,11 @@ public class FpsController : MonoBehaviour
 
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
 
-        _mouseLook.Update();
+        var mouseLookForward = _mouseLook.Update();
+        _transform.rotation = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up);
 
-        if (Input.GetKeyDown(KeyCode.F))
+        // Reset player
+        if (Input.GetKeyDown(KeyCode.R))
         {
             _transform.position = Vector3.zero + Vector3.up * 2f;
             _velocity = Vector3.forward;
@@ -215,7 +220,7 @@ public class FpsController : MonoBehaviour
         _isGroundedInThisFrame = false;
         
         // Get nearby colliders
-        Physics.OverlapSphereNonAlloc(_collisionElement.transform.position, _collisionElement.height / 2f,
+        Physics.OverlapSphereNonAlloc(_transform.position, _height + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
         foreach (var overlappingCollider in _overlappingColliders)
@@ -226,33 +231,46 @@ public class FpsController : MonoBehaviour
                 continue;
             }
 
-            Vector3 collisionNormal;
-            float collisionDistance;
-
-            if (Physics.ComputePenetration(
-                _collisionElement, _collisionElement.transform.position, _collisionElement.transform.rotation,
-                overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
-                out collisionNormal, out collisionDistance))
+            foreach (var coll in _collisionElements)
             {
-                if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
+                Vector3 collisionNormal;
+                float collisionDistance;
+
+                if (Physics.ComputePenetration(
+                    coll, coll.transform.position, coll.transform.rotation,
+                    overlappingCollider, overlappingCollider.transform.position, overlappingCollider.transform.rotation,
+                    out collisionNormal, out collisionDistance))
                 {
-                    _isGroundedInThisFrame = true;
+                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
+                    {
+                        _isGroundedInThisFrame = true;
+                    }
+
+                    if (coll is BoxCollider)
+                    {
+                        Debug.DrawLine(coll.bounds.center, coll.bounds.center + (collisionNormal * collisionDistance), Color.red, 10f);
+                    }
+
+                    // Ignore very small penetrations
+                    if (collisionDistance < 0.001)
+                    {
+                        continue;
+                    }
+
+                    // Get outta that collider!
+                    _transform.position += collisionNormal * collisionDistance;
+                    //totalDisplacement += collisionNormal * collisionDistance;
+
+                    // Crop down the velocity component which is in the direction of penetration
+                    playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
                 }
-
-                // Ignore very small penetrations
-                if (collisionDistance < 0.001)
-                {
-                    continue;
-                }
-
-                // Get outta that collider!
-                _transform.position += collisionNormal * collisionDistance;
-
-                // Crop down the velocity component which is in the direction of penetration
-                playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
             }
         }
 
+        for (var i = 0; i < _overlappingColliders.Length; i++)
+        {
+            _overlappingColliders[i] = null;
+        }
     }
 
     public void ResetAt(Transform t)

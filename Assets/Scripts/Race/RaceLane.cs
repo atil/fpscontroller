@@ -14,11 +14,14 @@ public class RaceLane : MonoBehaviour
 
     private float _elapsedTime;
     private bool _isRunning;
-    private Ui _ui; 
+    private Ui _ui;
+
+    private Transform _origin;
 
     void Start()
     {
         _ui = FindObjectOfType<Ui>(); // Sorry for not following good software engineering practices
+        _origin = GameObject.Find("Origin").transform;
 
         StartTrigger.Triggered += () =>
         {
@@ -61,11 +64,17 @@ public class RaceLane : MonoBehaviour
             _ui.UpdateTimerWith(_elapsedTime);
 
             // Reset player
-            if (Input.GetKeyDown(KeyCode.R))
+            if (Input.GetKeyDown(KeyCode.Q))
             {
                 FindObjectOfType<FpsController>().ResetAt(RestartPoint.transform);
                 EndRace(true);
             }
+        }
+
+        // Fps controller reset ends race
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            EndRace(true);
         }
 
     }
