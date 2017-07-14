@@ -2,38 +2,61 @@
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
-using UnityEngine.Video;
 
 public class FpsController : MonoBehaviour
 {
+    // It's better for camera to be a seperate object, not under the controller
+    // Since we update the position in FixedUpdate(), it would cause a jittery vision
     [SerializeField]
-    private float _height;
+    private Transform _camTransform;
 
+    // Collision resolving is done with respect to these volumes
+    // There are more than one
+    // Because apart from the main capsule itself,
+    // another one is needed for allowing 'ghost jumps'
     [SerializeField]
     private List<Collider> _collisionElements;
-
+	
+	// Collision will not happend with these layers
+	// One of them has to be this controller's own layer
     [SerializeField]
     private LayerMask _excludedLayers;
 
-    [Header("Movement")]
+    // The controller can collide with colliders within this radius
+    private const float Radius = 2f;
+
+    // Ad-hoc approach to make the controller accelerate faster
     private const float GroundAccelerationCoeff = 500.0f;
+
+	// How fast the controller accelerates while it's not grounded
     private const float AirAccelCoeff = 0.8f;
+	
+	// Air deceleration occurs when the player gives an input that's not aligned with the current velocity
     private const float AirDecelCoeff = 1.5f;
+	
+	// Along acceleration direction, we can't go faster than this
     private const float MaxSpeedAlongOneDimension = 8f;
+	
+	// How fast the controller decelerates on the grounded
     private const float Friction = 15;
-    private const float FrictionSpeedThreshold = 0.5f; // Just stop if under this speed
+	
+	 // Stop if under this speed
+    private const float FrictionSpeedThreshold = 0.5f;
+	
+	// Push force given when jumping
     private const float JumpStrength = 10f;
+	
+	// yeah...
     private const float Gravity = 25f;
+	
+	// How precise the controller can change direction while not grounded 
     private const float AirControlPrecision = 8f;
 
     private MouseLook _mouseLook;
     private Transform _transform;
-    [SerializeField]
     private Vector3 _velocity;
     private Vector3 _moveInput;
-    private Transform _camTransform;
 
-    [SerializeField]
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
@@ -44,9 +67,8 @@ public class FpsController : MonoBehaviour
 
     void Start()
 	{
+        Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
-        Application.targetFrameRate = 60; // Don't know why I did that
-        _camTransform = Camera.main.transform;
         _mouseLook = new MouseLook(_camTransform);
 	}
 
@@ -60,9 +82,7 @@ public class FpsController : MonoBehaviour
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
         // Draw horizontal speed as a line
-        // Should remain integer division, otherwise GUI drawing gets screwed up
-        // ... was a pain in the ass figuring this out
-        var mid = new Vector2(Screen.width / 2, Screen.height / 2); 
+        var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division, otherwise GUI drawing gets screwed up
         var v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * _velocity.WithY(0).magnitude * 10f;
         if (v.WithY(0).magnitude > 0.0001)
         {
@@ -77,25 +97,25 @@ public class FpsController : MonoBehaviour
         }
     }
 
-    // All logic, including player displacement, happens here
+    // All logic, including controller displacement, happens here
     void FixedUpdate()
     {
 	    var dt = Time.fixedDeltaTime;
-        var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
 
 	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
 
         if (_isGroundedInThisFrame) // Ground move
         {
-            if (!justLanded && !_isGonnaJump) // Don't apply friction if just landed
+			var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
+            if (!justLanded && !_isGonnaJump) // Don't apply friction if just landed or about to jump
             {
                 ApplyFriction(ref _velocity, Friction, dt);
             }
 
             Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
 
-            _velocity.y = 0;
+            _velocity.y = 0; // Ground movement always hard-resets vertical displacement
             if (_isGonnaJump)
             {
                 _isGonnaJump = false;
@@ -104,13 +124,13 @@ public class FpsController : MonoBehaviour
         }
         else // Air move
         {
-            // If the input is not in alignment with the current velocity
+            // If the input doesn't have the same facing with the current velocity
             // then slow down instead of speeding up
             var coeff = Vector3.Dot(_velocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
 
             Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, coeff, dt);
 
-            if (Mathf.Abs(_moveInput.z) > 0.0001)
+            if (Mathf.Abs(_moveInput.z) > 0.0001) // Pure side velocity doesn't allow air control
             {
                 ApplyAirControl(ref _velocity, wishDir, dt);
             }
@@ -130,7 +150,7 @@ public class FpsController : MonoBehaviour
     // We also bring the camera (which is a separate entity) to the controller position here
     void Update()
     {
-        Cursor.lockState = CursorLockMode.Locked; // Keep doing this. We don't want cursor anywher just yet
+        Cursor.lockState = CursorLockMode.Locked; // Keep doing this. We don't want cursor anywhere just yet
 
         var dt = Time.deltaTime;
         _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
@@ -147,9 +167,9 @@ public class FpsController : MonoBehaviour
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
 
         var mouseLookForward = _mouseLook.Update();
-        _transform.rotation = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up); // 
+        _transform.rotation = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up); // Only rotate vertically
 
-        // Reset player
+        // Reset player -- makes testing much easier
         if (Input.GetKeyDown(KeyCode.R))
         {
             _transform.position = Vector3.zero + Vector3.up * 2f;
@@ -204,6 +224,7 @@ public class FpsController : MonoBehaviour
 
     private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir, float dt)
     {
+		// This only happens in the horizontal plane
         var playerDirHorz = playerVelocity.WithY(0).normalized;
         var playerSpeedHorz = playerVelocity.WithY(0).magnitude;
 
@@ -222,12 +243,13 @@ public class FpsController : MonoBehaviour
 
     }
 
+	// Calculates the displacement required in order not to be in a world collider
     private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
         _isGroundedInThisFrame = false;
         
         // Get nearby colliders
-        Physics.OverlapSphereNonAlloc(_transform.position, _height + 0.1f,
+        Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
         var totalDisplacement = Vector3.zero;
@@ -255,13 +277,13 @@ public class FpsController : MonoBehaviour
                 float collisionDistance;
 
                 if (Physics.ComputePenetration(
-                    playerColl, playerColl.transform.position, playerColl.transform.rotation,
+                    playerColl, playerColl.transform.position, playerColl.transform.rotation, // These could be cached
                     envColl, envColl.transform.position, envColl.transform.rotation,
                     out collisionNormal, out collisionDistance))
                 {
                     // If the collision pointing up to some degree
                     // then it means we're standing on something
-                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5)
+                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5) // This actually can be bound to a variable
                     {
                         _isGroundedInThisFrame = true;
                     }
@@ -285,7 +307,7 @@ public class FpsController : MonoBehaviour
             }
         }
 
-
+		// It's better to be in a clean state in the next resolve call
         for (var i = 0; i < _overlappingColliders.Length; i++)
         {
             _overlappingColliders[i] = null;
@@ -296,7 +318,6 @@ public class FpsController : MonoBehaviour
 
     public void ResetAt(Transform t)
     {
-        // Teleport this guy to the said spot
         _transform.position = t.position + Vector3.up * 0.5f;
         _camTransform.position = _transform.position;
         _mouseLook.LookAt(t.position + t.forward);
