@@ -16,9 +16,9 @@ public class FpsController : MonoBehaviour
     // another one is needed for allowing 'ghost jumps'
     [SerializeField]
     private List<Collider> _collisionElements;
-	
-	// Collision will not happend with these layers
-	// One of them has to be this controller's own layer
+
+    // Collision will not happend with these layers
+    // One of them has to be this controller's own layer
     [SerializeField]
     private LayerMask _excludedLayers;
 
@@ -28,37 +28,45 @@ public class FpsController : MonoBehaviour
     // Ad-hoc approach to make the controller accelerate faster
     private const float GroundAccelerationCoeff = 500.0f;
 
-	// How fast the controller accelerates while it's not grounded
+    // How fast the controller accelerates while it's not grounded
     private const float AirAccelCoeff = 0.8f;
-	
-	// Air deceleration occurs when the player gives an input that's not aligned with the current velocity
+
+    // Air deceleration occurs when the player gives an input that's not aligned with the current velocity
     private const float AirDecelCoeff = 1.5f;
-	
-	// Along a dimension, we can't go faster than this
+
+    // Along a dimension, we can't go faster than this
     // This dimension is relative to the controller, not global
     // Meaning that "max speend along X" means "max speed along 'right side' of the controller"
     private const float MaxSpeedAlongOneDimension = 8f;
-	
-	// How fast the controller decelerates on the grounded
+
+    // How fast the controller decelerates on the grounded
     private const float Friction = 15;
-	
-	 // Stop if under this speed
+
+    // Stop if under this speed
     private const float FrictionSpeedThreshold = 0.5f;
-	
-	// Push force given when jumping
+
+    // Push force given when jumping
     private const float JumpStrength = 10f;
-	
-	// yeah...
+
+    // yeah...
     private const float Gravity = 25f;
-	
-	// How precise the controller can change direction while not grounded 
+
+    // How precise the controller can change direction while not grounded 
     private const float AirControlPrecision = 8f;
 
-    private MouseLook _mouseLook;
+    // Caching this always a good practice
     private Transform _transform;
+
+    // A crude way to look around, nothing fancy
+    private MouseLook _mouseLook;
+
+    // The real velocity of this controller
     private Vector3 _velocity;
+
+    // Raw input taken with GetAxisRaw()
     private Vector3 _moveInput;
 
+    // Some information to persist between frames or between Update() - FixedUpdate()
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
@@ -68,11 +76,11 @@ public class FpsController : MonoBehaviour
     private Vector3 _wishDirDebug;
 
     private void Start()
-	{
+    {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
         _mouseLook = new MouseLook(_camTransform);
-	}
+    }
 
     // Only for debug drawing
     private void OnGUI()
@@ -102,15 +110,19 @@ public class FpsController : MonoBehaviour
     // All logic, including controller displacement, happens here
     private void FixedUpdate()
     {
-	    var dt = Time.fixedDeltaTime;
+        var dt = Time.fixedDeltaTime;
 
-	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
+        var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.WithY(0);
 
         if (_isGroundedInThisFrame) // Ground move
         {
-			var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
-            if (!justLanded && !_isGonnaJump) // Don't apply friction if just landed or about to jump
+            var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
+
+            // Don't apply friction if just landed or about to jump
+            // TODO: Actually this can be extended to multiple frames, to make it easier
+            // Currently you have to catch that frame to be able to bhop
+            if (!justLanded && !_isGonnaJump)
             {
                 ApplyFriction(ref _velocity, Friction, FrictionSpeedThreshold, dt);
             }
@@ -179,7 +191,7 @@ public class FpsController : MonoBehaviour
             _transform.position = Vector3.zero + Vector3.up * 2f;
             _velocity = Vector3.forward;
         }
-        
+
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
@@ -228,7 +240,7 @@ public class FpsController : MonoBehaviour
 
     private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir, float dt)
     {
-		// This only happens in the horizontal plane
+        // This only happens in the horizontal plane
         var playerDirHorz = playerVelocity.WithY(0).normalized;
         var playerSpeedHorz = playerVelocity.WithY(0).magnitude;
 
@@ -236,7 +248,7 @@ public class FpsController : MonoBehaviour
         if (dot > 0)
         {
             var k = AirControlPrecision * dot * dot * dt;
-            
+
             // A little bit closer to accelDir
             playerDirHorz = playerDirHorz * playerSpeedHorz + accelDir * k;
             playerDirHorz.Normalize();
@@ -247,11 +259,11 @@ public class FpsController : MonoBehaviour
 
     }
 
-	// Calculates the displacement required in order not to be in a world collider
+    // Calculates the displacement required in order not to be in a world collider
     private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
         _isGroundedInThisFrame = false;
-        
+
         // Get nearby colliders
         Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
@@ -270,7 +282,7 @@ public class FpsController : MonoBehaviour
                 }
 
                 var envColl = _overlappingColliders[i];
-                
+
                 // Skip empty slots
                 if (envColl == null)
                 {
@@ -311,7 +323,7 @@ public class FpsController : MonoBehaviour
             }
         }
 
-		// It's better to be in a clean state in the next resolve call
+        // It's better to be in a clean state in the next resolve call
         for (var i = 0; i < _overlappingColliders.Length; i++)
         {
             _overlappingColliders[i] = null;
