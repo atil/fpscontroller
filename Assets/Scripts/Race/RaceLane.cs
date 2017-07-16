@@ -16,12 +16,9 @@ public class RaceLane : MonoBehaviour
     private bool _isRunning;
     private Ui _ui;
 
-    private Transform _origin;
-
     void Start()
     {
         _ui = FindObjectOfType<Ui>(); // Sorry for not following good software engineering practices
-        _origin = GameObject.Find("Origin").transform;
 
         StartTrigger.Triggered += () =>
         {

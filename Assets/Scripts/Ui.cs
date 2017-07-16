@@ -22,7 +22,7 @@ public class Ui : MonoBehaviour
         StartCoroutine(WaitAndHideText());
     }
 
-    IEnumerator WaitAndHideText()
+    private IEnumerator WaitAndHideText()
     {
         yield return new WaitForSeconds(5f);
         Timer.gameObject.SetActive(false);

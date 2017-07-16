@@ -34,7 +34,9 @@ public class FpsController : MonoBehaviour
 	// Air deceleration occurs when the player gives an input that's not aligned with the current velocity
     private const float AirDecelCoeff = 1.5f;
 	
-	// Along acceleration direction, we can't go faster than this
+	// Along a dimension, we can't go faster than this
+    // This dimension is relative to the controller, not global
+    // Meaning that "max speend along X" means "max speed along 'right side' of the controller"
     private const float MaxSpeedAlongOneDimension = 8f;
 	
 	// How fast the controller decelerates on the grounded
@@ -65,7 +67,7 @@ public class FpsController : MonoBehaviour
 
     private Vector3 _wishDirDebug;
 
-    void Start()
+    private void Start()
 	{
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
@@ -73,7 +75,7 @@ public class FpsController : MonoBehaviour
 	}
 
     // Only for debug drawing
-    void OnGUI()
+    private void OnGUI()
     {
         // Print current horizontal speed
         var ups = _velocity;
@@ -98,19 +100,19 @@ public class FpsController : MonoBehaviour
     }
 
     // All logic, including controller displacement, happens here
-    void FixedUpdate()
+    private void FixedUpdate()
     {
 	    var dt = Time.fixedDeltaTime;
 
 	    var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
-        _wishDirDebug = new Vector3(wishDir.x, 0, wishDir.z);
+        _wishDirDebug = wishDir.WithY(0);
 
         if (_isGroundedInThisFrame) // Ground move
         {
 			var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
             if (!justLanded && !_isGonnaJump) // Don't apply friction if just landed or about to jump
             {
-                ApplyFriction(ref _velocity, Friction, dt);
+                ApplyFriction(ref _velocity, Friction, FrictionSpeedThreshold, dt);
             }
 
             Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
@@ -146,13 +148,15 @@ public class FpsController : MonoBehaviour
         _isGroundedInPrevFrame = _isGroundedInThisFrame;
     }
 
-    // Input taking happens here
+    // Input receiving happens here
     // We also bring the camera (which is a separate entity) to the controller position here
-    void Update()
+    private void Update()
     {
         Cursor.lockState = CursorLockMode.Locked; // Keep doing this. We don't want cursor anywhere just yet
 
         var dt = Time.deltaTime;
+
+        // We use GetAxisRaw, since we need it to feel as responsive as possible
         _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
 
         if (Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
@@ -204,7 +208,7 @@ public class FpsController : MonoBehaviour
         playerVelocity += accelDir * accelAmount; // Magic happens here
     }
 
-    private void ApplyFriction(ref Vector3 playerVelocity, float frictionCoeff, float dt)
+    private void ApplyFriction(ref Vector3 playerVelocity, float frictionCoeff, float frictionSpeedThreshold, float dt)
     {
         var speed = playerVelocity.magnitude;
         if (speed <= 0.00001)
@@ -212,7 +216,7 @@ public class FpsController : MonoBehaviour
             return;
         }
 
-        var downLimit = Mathf.Max(speed, FrictionSpeedThreshold);
+        var downLimit = Mathf.Max(speed, frictionSpeedThreshold); // Don't drop below treshold
         var dropAmount = speed - (downLimit * frictionCoeff * dt);
         if (dropAmount < 0)
         {
@@ -277,13 +281,13 @@ public class FpsController : MonoBehaviour
                 float collisionDistance;
 
                 if (Physics.ComputePenetration(
-                    playerColl, playerColl.transform.position, playerColl.transform.rotation, // These could be cached
+                    playerColl, playerColl.transform.position, playerColl.transform.rotation, // TODO: These could be cached
                     envColl, envColl.transform.position, envColl.transform.rotation,
                     out collisionNormal, out collisionDistance))
                 {
                     // If the collision pointing up to some degree
                     // then it means we're standing on something
-                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5) // This actually can be bound to a variable
+                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5) // TODO: This actually can be bound to a variable
                     {
                         _isGroundedInThisFrame = true;
                     }
