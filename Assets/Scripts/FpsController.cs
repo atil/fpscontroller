@@ -115,6 +115,8 @@ public class FpsController : MonoBehaviour
         var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.WithY(0);
 
+        var collisionDisplacement = ResolveCollisions(ref _velocity);
+
         if (_isGroundedInThisFrame) // Ground move
         {
             var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
@@ -153,10 +155,7 @@ public class FpsController : MonoBehaviour
         }
 
         _transform.position += _velocity * dt; // Actual displacement
-
-        var collisionDisplacement = ResolveCollisions(ref _velocity);
         _transform.position += collisionDisplacement; // Pushing out of environment
-
         _isGroundedInPrevFrame = _isGroundedInThisFrame;
     }
 
