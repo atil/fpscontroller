@@ -5,14 +5,6 @@ using UnityEngine;
 
 public class FpsController : MonoBehaviour
 {
-    // The end point of spring. The other end is always at the player
-    [SerializeField]
-    private Transform _springEnd;
-
-    // Temporary(hopefully) spring visual
-    [SerializeField]
-    private Transform _springVisual;
-
     // It's better for camera to be a seperate object, not under the controller
     // Since we update the position in FixedUpdate(), it would cause a jittery vision
     [SerializeField]
@@ -29,6 +21,10 @@ public class FpsController : MonoBehaviour
     // One of them has to be this controller's own layer
     [SerializeField]
     private LayerMask _excludedLayers;
+
+    // Temporary visual for grappling hook
+    [SerializeField]
+    private GameObject _hookVisual;
 
     // The controller can collide with colliders within this radius
     private const float Radius = 2f;
@@ -60,19 +56,16 @@ public class FpsController : MonoBehaviour
     private const float Gravity = 25f;
 
     // How precise the controller can change direction while not grounded 
-    private const float AirControlPrecision = 8f;
-
-    // How strong the spring will feel
-    private const float SpringTightness = 0.1f;
-
-    // The higher this number is, the quicker the spring will come to rest
-    private const float DampingCoeff = 0.01f;
+    private const float AirControlPrecision = 16f;
 
     // Caching this always a good practice
     private Transform _transform;
 
     // A crude way to look around, nothing fancy
     private MouseLook _mouseLook;
+
+    // The code that handles hook related things
+    private GrapplingHook _hook;
 
     // The real velocity of this controller
     private Vector3 _velocity;
@@ -87,7 +80,6 @@ public class FpsController : MonoBehaviour
     private bool _isGroundedInThisFrame;
     private bool _isGroundedInPrevFrame;
     private bool _isGonnaJump;
-    private bool _isSpringActive;
 
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
 
@@ -99,6 +91,8 @@ public class FpsController : MonoBehaviour
         _transform = transform;
         _mouseLook = new MouseLook(_camTransform);
         _screenMidPoint = new Vector3(Screen.width / 2f, Screen.height / 2f, 0);
+
+        _hook = new GrapplingHook(_hookVisual, _screenMidPoint);
     }
 
     // Only for debug drawing
@@ -109,6 +103,9 @@ public class FpsController : MonoBehaviour
         ups.y = 0;
         GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 50, 100, 40),
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
+
+        GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 90, 100, 40), 
+            _isGroundedInThisFrame ? "GROUND" : "AIR");
 
         // Draw horizontal speed as a line
         var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division, otherwise GUI drawing gets screwed up
@@ -173,10 +170,7 @@ public class FpsController : MonoBehaviour
             _velocity.y -= Gravity * dt;
         }
 
-        if (_isSpringActive)
-        {
-            ApplySpringAcceleration(ref _velocity, _transform.position, _springEnd.position);
-        }
+        _hook.ApplyHookAcceleration(ref _velocity, _transform.position);
 
         _transform.position += _velocity * dt; // Actual displacement
         _transform.position += collisionDisplacement; // Pushing out of environment
@@ -206,19 +200,11 @@ public class FpsController : MonoBehaviour
         // Swing web with mouse button
         if (Input.GetMouseButtonDown(0))
         {
-            _isSpringActive = true;
-            _springVisual.gameObject.SetActive(true);
-
-            RaycastHit hit;
-            if (Physics.Raycast(Camera.main.ScreenPointToRay(_screenMidPoint), out hit))
-            {
-                _springEnd.position = hit.point;
-            }
+            _hook.CastHook();
         }
         if (Input.GetMouseButtonUp(0))
         {
-            _isSpringActive = false;
-            _springVisual.gameObject.SetActive(false);
+            _hook.UncastHook();
         }
 
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
@@ -233,7 +219,7 @@ public class FpsController : MonoBehaviour
             _velocity = Vector3.forward;
         }
 
-        DrawSpring(_springVisual, _springEnd.position, _camTransform.position - Vector3.up * 0.4f);
+        _hook.Draw(_camTransform.position - Vector3.up * 0.4f);
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
@@ -310,6 +296,16 @@ public class FpsController : MonoBehaviour
         Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
+        //Debug.Log("++++++++++++++");
+        //foreach (var overlappingCollider in _overlappingColliders)
+        //{
+        //    if (overlappingCollider != null)
+        //    {
+        //        Debug.Log("gonna check with : " + overlappingCollider.name);
+        //    }
+        //}
+        //Debug.Log("--------------");
+
         var totalDisplacement = Vector3.zero;
         var checkedColliderIndices = new HashSet<int>();
         foreach (var playerColl in _collisionElements)
@@ -362,6 +358,10 @@ public class FpsController : MonoBehaviour
                     // Crop down the velocity component which is in the direction of penetration
                     playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
                 }
+                else
+                {
+                    //Debug.Log("doesn't collide with : " + envColl.bounds.Contains(_transform.position));
+                }
             }
         }
 
@@ -372,23 +372,6 @@ public class FpsController : MonoBehaviour
         }
 
         return totalDisplacement;
-    }
-
-    private void ApplySpringAcceleration(ref Vector3 playerVelocity, Vector3 playerPosition, Vector3 springEndPoint)
-    {
-        var springLength = Vector3.Distance(playerPosition, springEndPoint);
-        var springDir = (springEndPoint - playerPosition).normalized;
-        var damping = playerVelocity * DampingCoeff;
-
-        playerVelocity += springLength * SpringTightness * springDir;
-        playerVelocity -= damping;
-    }
-
-    private void DrawSpring(Transform springVisual, Vector3 springEndPoint, Vector3 playerPoint)
-    {
-        springVisual.position = (springEndPoint + playerPoint) / 2f;
-        springVisual.rotation = Quaternion.LookRotation(springEndPoint - playerPoint);
-        springVisual.localScale = new Vector3(0.1f, 0.1f, Vector3.Distance(springEndPoint, playerPoint));
     }
 
     public void ResetAt(Transform t)
