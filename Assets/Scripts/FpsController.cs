@@ -1,18 +1,13 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
 
+/// <summary>
+/// Q3-based first person controller
+/// </summary>
 public class FpsController : MonoBehaviour
 {
-    // The end point of spring. The other end is always at the player
-    [SerializeField]
-    private Transform _springEnd;
-
-    // Temporary(hopefully) spring visual
-    [SerializeField]
-    private Transform _springVisual;
-
+    #region Drag Drop
     // It's better for camera to be a seperate object, not under the controller
     // Since we update the position in FixedUpdate(), it would cause a jittery vision
     [SerializeField]
@@ -23,12 +18,24 @@ public class FpsController : MonoBehaviour
     // Because apart from the main capsule itself,
     // another one is needed for allowing 'ghost jumps'
     [SerializeField]
-    private List<Collider> _collisionElements;
+    private List<CapsuleCollider> _collisionElements;
 
     // Collision will not happend with these layers
     // One of them has to be this controller's own layer
     [SerializeField]
     private LayerMask _excludedLayers;
+
+    [SerializeField]
+    private Footsteps _footsteps;
+
+    [SerializeField]
+    private GrapplingHook _hook;
+
+    [SerializeField]
+    private bool _debugInfo;
+    #endregion
+
+    #region Movement Parameters
 
     // The controller can collide with colliders within this radius
     private const float Radius = 2f;
@@ -60,15 +67,15 @@ public class FpsController : MonoBehaviour
     private const float Gravity = 25f;
 
     // How precise the controller can change direction while not grounded 
-    private const float AirControlPrecision = 8f;
+    private const float AirControlPrecision = 16f;
 
-    // How strong the spring will feel
-    private const float SpringTightness = 0.1f;
+    // When moving only forward, increase air control dramatically
+    private const float AirControlAdditionForward = 30f;
+    #endregion
 
-    // The higher this number is, the quicker the spring will come to rest
-    private const float DampingCoeff = 0.01f;
-
+    #region Fields
     // Caching this always a good practice
+    // EDIT: Not anymore, as Unity caches it for us.
     private Transform _transform;
 
     // A crude way to look around, nothing fancy
@@ -81,29 +88,29 @@ public class FpsController : MonoBehaviour
     private Vector3 _moveInput;
 
     // Caching...
-    private Vector3 _screenMidPoint;
-
-    // Some information to persist between frames or between Update() - FixedUpdate()
-    private bool _isGroundedInThisFrame;
-    private bool _isGroundedInPrevFrame;
-    private bool _isGonnaJump;
-    private bool _isSpringActive;
-
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
 
-    private Vector3 _wishDirDebug;
+    // Some information to persist
+    private bool _isGroundedInPrevFrame; // ...between frames
+    private bool _isGonnaJump; // ...between FixedUpdate() and Update()
+    private Vector3 _wishDirDebug; // ...between FixedUpdate() and OnGUI()
+    #endregion
 
     private void Start()
     {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
         _mouseLook = new MouseLook(_camTransform);
-        _screenMidPoint = new Vector3(Screen.width / 2f, Screen.height / 2f, 0);
     }
 
     // Only for debug drawing
     private void OnGUI()
     {
+        if (!_debugInfo)
+        {
+            return;
+        }
+
         // Print current horizontal speed
         var ups = _velocity;
         ups.y = 0;
@@ -134,21 +141,22 @@ public class FpsController : MonoBehaviour
         var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.WithY(0);
 
-        var collisionDisplacement = ResolveCollisions(ref _velocity);
+        Vector3 collisionDisplacement;
+        var isGrounded = ResolveCollisions(ref _velocity, out collisionDisplacement);
 
-        if (_isGroundedInThisFrame) // Ground move
+        _footsteps.ExternalUpdate(_isGonnaJump, isGrounded, isGrounded && !_isGroundedInPrevFrame);
+
+        if (isGrounded) // Ground move
         {
-            var justLanded = !_isGroundedInPrevFrame && _isGroundedInThisFrame;
-
             // Don't apply friction if just landed or about to jump
             // TODO: Actually this can be extended to multiple frames, to make it easier
             // Currently you have to catch that frame to be able to bhop
-            if (!justLanded && !_isGonnaJump)
+            if (_isGroundedInPrevFrame && !_isGonnaJump)
             {
-                ApplyFriction(ref _velocity, Friction, FrictionSpeedThreshold, dt);
+                ApplyFriction(ref _velocity, dt);
             }
 
-            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, GroundAccelerationCoeff, dt);
+            Accelerate(ref _velocity, wishDir, GroundAccelerationCoeff, dt);
 
             _velocity.y = 0; // Ground movement always hard-resets vertical displacement
             if (_isGonnaJump)
@@ -163,7 +171,7 @@ public class FpsController : MonoBehaviour
             // then slow down instead of speeding up
             var coeff = Vector3.Dot(_velocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
 
-            Accelerate(ref _velocity, wishDir, MaxSpeedAlongOneDimension, coeff, dt);
+            Accelerate(ref _velocity, wishDir, coeff, dt);
 
             if (Mathf.Abs(_moveInput.z) > 0.0001) // Pure side velocity doesn't allow air control
             {
@@ -173,14 +181,21 @@ public class FpsController : MonoBehaviour
             _velocity.y -= Gravity * dt;
         }
 
-        if (_isSpringActive)
+        _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
+        _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
+
+        var displacement = _velocity * dt;
+
+        // If we're moving too fast, make sure we don't hollow through any collider
+        if (displacement.magnitude > _collisionElements[0].radius) // First collider is used as reference
         {
-            ApplySpringAcceleration(ref _velocity, _transform.position, _springEnd.position);
+            ClampDisplacement(ref _velocity, ref displacement, _transform.position);
         }
 
-        _transform.position += _velocity * dt; // Actual displacement
+        _transform.position += displacement;
         _transform.position += collisionDisplacement; // Pushing out of environment
-        _isGroundedInPrevFrame = _isGroundedInThisFrame;
+        _isGroundedInPrevFrame = isGrounded;
+
     }
 
     // Input receiving happens here
@@ -202,25 +217,8 @@ public class FpsController : MonoBehaviour
         {
             _isGonnaJump = false;
         }
-        
-        // Swing web with mouse button
-        if (Input.GetMouseButtonDown(0))
-        {
-            _isSpringActive = true;
-            _springVisual.gameObject.SetActive(true);
 
-            RaycastHit hit;
-            if (Physics.Raycast(Camera.main.ScreenPointToRay(_screenMidPoint), out hit))
-            {
-                _springEnd.position = hit.point;
-            }
-        }
-        if (Input.GetMouseButtonUp(0))
-        {
-            _isSpringActive = false;
-            _springVisual.gameObject.SetActive(false);
-        }
-
+        _hook.ExternalUpdate(dt, _transform.position);
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
 
         var mouseLookForward = _mouseLook.Update();
@@ -231,27 +229,27 @@ public class FpsController : MonoBehaviour
         {
             _transform.position = Vector3.zero + Vector3.up * 2f;
             _velocity = Vector3.forward;
+            _hook.ResetHook();
         }
-
-        DrawSpring(_springVisual, _springEnd.position, _camTransform.position - Vector3.up * 0.4f);
+        _hook.Draw();
     }
 
-    private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float maxSpeedAlongOneDimension, float accelCoeff, float dt)
+    private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
     {
         // How much speed we already have in the direction we want to speed up
         var projSpeed = Vector3.Dot(playerVelocity, accelDir);
 
         // How much speed we need to add (in that direction) to reach max speed
-        var addSpeed = maxSpeedAlongOneDimension - projSpeed;
+        var addSpeed = MaxSpeedAlongOneDimension - projSpeed;
         if (addSpeed <= 0)
         {
             return;
         }
 
         // How much we are gonna increase our speed
-        // maxSpeed * dt => the real deal. a = v * (1 / t)
+        // maxSpeed * dt => the real deal. a = v / t
         // accelCoeff => ad hoc approach to make it feel better
-        var accelAmount = accelCoeff * maxSpeedAlongOneDimension * dt;
+        var accelAmount = accelCoeff * MaxSpeedAlongOneDimension * dt;
 
         // If we are accelerating more than in a way that we exceed maxSpeedInOneDimension, crop it to max
         if (accelAmount > addSpeed)
@@ -262,7 +260,7 @@ public class FpsController : MonoBehaviour
         playerVelocity += accelDir * accelAmount; // Magic happens here
     }
 
-    private void ApplyFriction(ref Vector3 playerVelocity, float frictionCoeff, float frictionSpeedThreshold, float dt)
+    private void ApplyFriction(ref Vector3 playerVelocity, float dt)
     {
         var speed = playerVelocity.magnitude;
         if (speed <= 0.00001)
@@ -270,8 +268,8 @@ public class FpsController : MonoBehaviour
             return;
         }
 
-        var downLimit = Mathf.Max(speed, frictionSpeedThreshold); // Don't drop below treshold
-        var dropAmount = speed - (downLimit * frictionCoeff * dt);
+        var downLimit = Mathf.Max(speed, FrictionSpeedThreshold); // Don't drop below treshold
+        var dropAmount = speed - (downLimit * Friction * dt);
         if (dropAmount < 0)
         {
             dropAmount = 0;
@@ -291,6 +289,16 @@ public class FpsController : MonoBehaviour
         {
             var k = AirControlPrecision * dot * dot * dt;
 
+            // CPMA thingy:
+            // If we want pure forward movement, we have much more air control
+            // Of course this only happens when we're not hooked
+            var accelDirLocal = _camTransform.InverseTransformDirectionHorizontal(accelDir);
+            var isPureForward = Mathf.Abs(accelDirLocal.x) < 0.0001 && Mathf.Abs(accelDirLocal.z) > 0;
+            if (isPureForward && _hook.State == HookState.Off)
+            {
+                k *= AirControlAdditionForward;
+            }
+
             // A little bit closer to accelDir
             playerDirHorz = playerDirHorz * playerSpeedHorz + accelDir * k;
             playerDirHorz.Normalize();
@@ -302,9 +310,9 @@ public class FpsController : MonoBehaviour
     }
 
     // Calculates the displacement required in order not to be in a world collider
-    private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
+    private bool ResolveCollisions(ref Vector3 playerVelocity, out Vector3 displacement)
     {
-        _isGroundedInThisFrame = false;
+        var isGrounded = false;
 
         // Get nearby colliders
         Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
@@ -335,21 +343,21 @@ public class FpsController : MonoBehaviour
                 float collisionDistance;
 
                 if (Physics.ComputePenetration(
-                    playerColl, playerColl.transform.position, playerColl.transform.rotation, // TODO: These could be cached
+                    playerColl, playerColl.transform.position, playerColl.transform.rotation,
                     envColl, envColl.transform.position, envColl.transform.rotation,
                     out collisionNormal, out collisionDistance))
                 {
                     // If the collision pointing up to some degree
                     // then it means we're standing on something
-                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5) // TODO: This actually can be bound to a variable
+                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5f) // TODO: This actually can be bound to a variable
                     {
-                        _isGroundedInThisFrame = true;
+                        isGrounded = true;
                     }
 
                     // Ignore very small penetrations
                     // Required for standing still on slopes
                     // ... still far from perfect though
-                    if (collisionDistance < 0.01)
+                    if (collisionDistance < 0.015)
                     {
                         continue;
                     }
@@ -371,24 +379,18 @@ public class FpsController : MonoBehaviour
             _overlappingColliders[i] = null;
         }
 
-        return totalDisplacement;
+        displacement = totalDisplacement;
+        return isGrounded;
     }
 
-    private void ApplySpringAcceleration(ref Vector3 playerVelocity, Vector3 playerPosition, Vector3 springEndPoint)
+    // If there's something between the current position and the next, clamp displacement
+    private void ClampDisplacement(ref Vector3 playerVelocity, ref Vector3 displacement, Vector3 playerPosition)
     {
-        var springLength = Vector3.Distance(playerPosition, springEndPoint);
-        var springDir = (springEndPoint - playerPosition).normalized;
-        var damping = playerVelocity * DampingCoeff;
-
-        playerVelocity += springLength * SpringTightness * springDir;
-        playerVelocity -= damping;
-    }
-
-    private void DrawSpring(Transform springVisual, Vector3 springEndPoint, Vector3 playerPoint)
-    {
-        springVisual.position = (springEndPoint + playerPoint) / 2f;
-        springVisual.rotation = Quaternion.LookRotation(springEndPoint - playerPoint);
-        springVisual.localScale = new Vector3(0.1f, 0.1f, Vector3.Distance(springEndPoint, playerPoint));
+        RaycastHit hit;
+        if (Physics.Raycast(playerPosition, playerVelocity.normalized, out hit, displacement.magnitude, ~_excludedLayers))
+        {
+            displacement = hit.point - playerPosition;
+        }
     }
 
     public void ResetAt(Transform t)
