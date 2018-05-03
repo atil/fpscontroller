@@ -221,21 +221,6 @@
     <Reference Include="UnityEngine.SpatialTracking">
       <HintPath>C:/Program Files/Unity5.6.0p3/Editor/Data/UnityExtensions/Unity/UnitySpatialTracking/RuntimeEditor/UnityEngine.SpatialTracking.dll</HintPath>
     </Reference>
-    <Reference Include="ProBuilderCore-Unity5">
-      <HintPath>Assets/Standard Assets/ProCore/ProBuilder/Classes/ProBuilderCore-Unity5.dll</HintPath>
-    </Reference>
-    <Reference Include="ProBuilderMeshOps-Unity5">
-      <HintPath>Assets/Standard Assets/ProCore/ProBuilder/Classes/ProBuilderMeshOps-Unity5.dll</HintPath>
-    </Reference>
-    <Reference Include="KdTreeLib">
-      <HintPath>Assets/Standard Assets/ProCore/ProBuilder/Classes/ClassesLib/KdTreeLib.dll</HintPath>
-    </Reference>
-    <Reference Include="pb_Stl">
-      <HintPath>Assets/Standard Assets/ProCore/ProBuilder/Classes/ClassesLib/pb_Stl.dll</HintPath>
-    </Reference>
-    <Reference Include="Poly2Tri">
-      <HintPath>Assets/Standard Assets/ProCore/ProBuilder/Classes/ClassesLib/Poly2Tri.dll</HintPath>
-    </Reference>
     <Reference Include="UnityEngine.Advertisements">
       <HintPath>C:/ProgramData/Unity/cache/packages/packages.unity.com/com.unity.ads@2.0.3/UnityEngine.Advertisements.dll</HintPath>
     </Reference>
@@ -267,12 +252,6 @@
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\TiltInput.cs" />
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\TouchPad.cs" />
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\VirtualInput.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Icosphere FFT\Scripts\CameraControls.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Icosphere FFT\Scripts\IcoBumpin.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Misc\HueCube.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Procedural Mesh\ExtrudeRandomEdges.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Runtime Editing\RuntimeEdit.cs" />
-    <Compile Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Vertex Colors\HighlightNearestFace.cs" />
     <Compile Include="Assets\Standard Assets\Utility\ActivateTrigger.cs" />
     <Compile Include="Assets\Standard Assets\Utility\AlphaButtonClickMask.cs" />
     <Compile Include="Assets\Standard Assets\Utility\AutoMobileShaderSwitch.cs" />
@@ -300,26 +279,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Standard Assets\CrossPlatformInput\CrossPlatformInputGuidelines.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\API Examples\Icosphere FFT\README.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\About\Font\SIL Open Font License.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\About\ThirdPartyLicenses.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\About\changelog.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\About\pc_AboutEntry_ProBuilder.txt" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\DiffuseTextureBlend.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\DiffuseVertexColor.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\UnlitSolidColor.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_FaceHighlight.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_FacePicker.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_HideVertices.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_ReferenceUnlit.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_ScrollHighlight.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_SelectionPicker.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_StandardVertexColor.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_TransparentOverlay.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_UnlitVertexColor.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_VertexPicker.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\Shader\pb_VertexShader.shader" />
-    <None Include="Assets\Standard Assets\ProCore\ProBuilder\readme.txt" />
     <None Include="Assets\Standard Assets\Prototyping\Shaders\WorldCoordDiffuse.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
