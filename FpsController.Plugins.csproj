@@ -286,6 +286,9 @@
     <Reference Include="UnityEngine.StandardEvents">
       <HintPath>Library\UnityAssemblies\UnityEngine.StandardEvents.dll</HintPath>
     </Reference>
+    <Reference Include="SabreCSG.Core">
+      <HintPath>Assets\Standard Assets\SabreCSG\Scripts\SabreCSG.Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\AxisTouchButton.cs" />
@@ -299,6 +302,68 @@
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\TiltInput.cs" />
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\TouchPad.cs" />
     <Compile Include="Assets\Standard Assets\CrossPlatformInput\Scripts\VirtualInput.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Brushes\PrimitiveBrush.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\CallbackEvents.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\CSGModel.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\CSGModelBase.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\CSGModelRuntime.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\CurrentSettings.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\ExpandPropertiesAttribute.cs.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\ColorHex.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\EditorHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\EnumHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\Extensions.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\MathHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\Matrices\Matrix2x2.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\Matrices\Matrix3x2.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\MeshExtensions.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\StringHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\TransformData.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\TransformHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Extensions\WorldTransformData.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\AdjacencyHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\BrushFactory.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\GeometryHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\MeshHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\OBJFactory.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\OBJVertexList.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\PolygonFactory.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Geometry\UVUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Input\EditorKeyMappings.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Input\KeyMappings.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\IPostBuildListener.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\LinearFPSCam.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Pair.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\ClipEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\DrawEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\EdgeEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\ResizeEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\ResizeHandlePair.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\SurfaceEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Tool.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\BrushUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\ClipUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\DrawUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\EdgeUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\SurfaceUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\Vertex Weld Ops\VertexWeldCentroidOperation.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\Vertex Weld Ops\VertexWeldOperation.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\Vertex Weld Ops\VertexWeldToleranceOperation.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\Utilities\VertexUtility.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\Tools\VertexEditor.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\CSGGrid.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\GridManager.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\RadialMenu.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreCSGPreferences.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreCSGResources.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreGraphics.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreGUIHelper.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreGUILayout.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreInput.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\SabreMouse.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\Toolbar.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UI\VertexColorWindow.cs" />
+    <Compile Include="Assets\Standard Assets\SabreCSG\Scripts\UpdateUtility.cs" />
     <Compile Include="Assets\Standard Assets\Utility\ActivateTrigger.cs" />
     <Compile Include="Assets\Standard Assets\Utility\AlphaButtonClickMask.cs" />
     <Compile Include="Assets\Standard Assets\Utility\AutoMobileShaderSwitch.cs" />
@@ -325,13 +390,20 @@
     <Compile Include="Assets\Standard Assets\Utility\WaypointProgressTracker.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\Scripts\PostProcess\BlendShader.shader" />
-    <None Include="Assets\Scripts\PostProcess\DepthNormalRenderer.shader" />
-    <None Include="Assets\Scripts\PostProcess\GaussianBlur\GaussianBlurFilter.shader" />
-    <None Include="Assets\Scripts\PostProcess\MultiTapEdgeDetect.shader" />
-    <None Include="Assets\Scripts\PostProcess\PProcessShader.shader" />
     <None Include="Assets\Standard Assets\CrossPlatformInput\CrossPlatformInputGuidelines.txt" />
     <None Include="Assets\Standard Assets\Prototyping\Shaders\WorldCoordDiffuse.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Changelog.txt" />
+    <None Include="Assets\Standard Assets\SabreCSG\Internal\Shaders\BrushPreview.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Diffuse-VertexColored.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Handle.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Line.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\LineDashed.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Plane.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Preview.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\SeeExcluded.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\Tri-Planar.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\UINoAlpha.shader" />
+    <None Include="Assets\Standard Assets\SabreCSG\Shaders\VertexTinted.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />
