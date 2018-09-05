@@ -18,7 +18,7 @@ public class FpsController : MonoBehaviour
     // Because apart from the main capsule itself,
     // another one is needed for allowing 'ghost jumps'
     [SerializeField]
-    private List<CapsuleCollider> _collisionElements;
+    private CapsuleCollider _collisionVolume;
 
     // Collision will not happend with these layers
     // One of them has to be this controller's own layer
@@ -33,6 +33,9 @@ public class FpsController : MonoBehaviour
 
     [SerializeField]
     private bool _debugInfo;
+
+    [SerializeField]
+    private List<Transform> _groundedRayPositions;
     #endregion
 
     #region Movement Parameters
@@ -61,16 +64,16 @@ public class FpsController : MonoBehaviour
     private const float FrictionSpeedThreshold = 0.5f;
 
     // Push force given when jumping
-    private const float JumpStrength = 10f;
+    private const float JumpStrength = 8f;
 
     // yeah...
-    private const float Gravity = 25f;
+    private const float Gravity = 24f;
 
     // How precise the controller can change direction while not grounded 
     private const float AirControlPrecision = 16f;
 
     // When moving only forward, increase air control dramatically
-    private const float AirControlAdditionForward = 30f;
+    private const float AirControlAdditionForward = 8f;
     #endregion
 
     #region Fields
@@ -141,8 +144,7 @@ public class FpsController : MonoBehaviour
         var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.WithY(0);
 
-        Vector3 collisionDisplacement;
-        var isGrounded = ResolveCollisions(ref _velocity, out collisionDisplacement);
+        var isGrounded = IsGrounded();
 
         _footsteps.ExternalUpdate(_isGonnaJump, isGrounded, isGrounded && !_isGroundedInPrevFrame);
 
@@ -181,13 +183,15 @@ public class FpsController : MonoBehaviour
             _velocity.y -= Gravity * dt;
         }
 
+        var collisionDisplacement = ResolveCollisions(ref _velocity);
+
         _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
         _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
 
         var displacement = _velocity * dt;
 
         // If we're moving too fast, make sure we don't hollow through any collider
-        if (displacement.magnitude > _collisionElements[0].radius) // First collider is used as reference
+        if (displacement.magnitude > _collisionVolume.radius)
         {
             ClampDisplacement(ref _velocity, ref displacement, _transform.position);
         }
@@ -218,7 +222,7 @@ public class FpsController : MonoBehaviour
             _isGonnaJump = false;
         }
 
-        _hook.ExternalUpdate(dt, _transform.position);
+        //_hook.ExternalUpdate(dt, _transform.position);
         _camTransform.position = Vector3.Lerp(_camTransform.position, _transform.position, dt * 200f);
 
         var mouseLookForward = _mouseLook.Update();
@@ -310,66 +314,54 @@ public class FpsController : MonoBehaviour
     }
 
     // Calculates the displacement required in order not to be in a world collider
-    private bool ResolveCollisions(ref Vector3 playerVelocity, out Vector3 displacement)
+    private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
-        var isGrounded = false;
-
         // Get nearby colliders
         Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
         var totalDisplacement = Vector3.zero;
         var checkedColliderIndices = new HashSet<int>();
-        foreach (var playerColl in _collisionElements)
+        
+        // If the player is intersecting with that environment collider, separate them
+        for (var i = 0; i < _overlappingColliders.Length; i++)
         {
-            // If the player is intersecting with that environment collider, separate them
-            for (var i = 0; i < _overlappingColliders.Length; i++)
+            // Two player colliders shouldn't resolve collision with the same environment collider
+            if (checkedColliderIndices.Contains(i))
             {
-                // Two player colliders shouldn't resolve collision with the same environment collider
-                if (checkedColliderIndices.Contains(i))
+                continue;
+            }
+
+            var envColl = _overlappingColliders[i];
+
+            // Skip empty slots
+            if (envColl == null)
+            {
+                continue;
+            }
+
+            Vector3 collisionNormal;
+            float collisionDistance;
+            if (Physics.ComputePenetration(
+                _collisionVolume, _collisionVolume.transform.position, _collisionVolume.transform.rotation,
+                envColl, envColl.transform.position, envColl.transform.rotation,
+                out collisionNormal, out collisionDistance))
+            {
+                // Ignore very small penetrations
+                // Required for standing still on slopes
+                // ... still far from perfect though
+                if (collisionDistance < 0.015)
                 {
                     continue;
                 }
 
-                var envColl = _overlappingColliders[i];
+                checkedColliderIndices.Add(i);
 
-                // Skip empty slots
-                if (envColl == null)
-                {
-                    continue;
-                }
+                // Get outta that collider!
+                totalDisplacement += collisionNormal * collisionDistance;
 
-                Vector3 collisionNormal;
-                float collisionDistance;
-
-                if (Physics.ComputePenetration(
-                    playerColl, playerColl.transform.position, playerColl.transform.rotation,
-                    envColl, envColl.transform.position, envColl.transform.rotation,
-                    out collisionNormal, out collisionDistance))
-                {
-                    // If the collision pointing up to some degree
-                    // then it means we're standing on something
-                    if (Vector3.Dot(collisionNormal, Vector3.up) > 0.5f) // TODO: This actually can be bound to a variable
-                    {
-                        isGrounded = true;
-                    }
-
-                    // Ignore very small penetrations
-                    // Required for standing still on slopes
-                    // ... still far from perfect though
-                    if (collisionDistance < 0.015)
-                    {
-                        continue;
-                    }
-
-                    checkedColliderIndices.Add(i);
-
-                    // Get outta that collider!
-                    totalDisplacement += collisionNormal * collisionDistance;
-
-                    // Crop down the velocity component which is in the direction of penetration
-                    playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
-                }
+                // Crop down the velocity component which is in the direction of penetration
+                playerVelocity -= Vector3.Project(playerVelocity, collisionNormal);
             }
         }
 
@@ -379,8 +371,22 @@ public class FpsController : MonoBehaviour
             _overlappingColliders[i] = null;
         }
 
-        displacement = totalDisplacement;
-        return isGrounded;
+        return totalDisplacement;
+    }
+
+    // If one of the rays hit, we're considered to be grounded
+    private bool IsGrounded()
+    {
+        foreach (var t in _groundedRayPositions)
+        {
+            RaycastHit hit;
+            if (Physics.Raycast(t.position, Vector3.down, out hit, 0.51f, ~_excludedLayers)) // Magic numbers are a no-no
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // If there's something between the current position and the next, clamp displacement
