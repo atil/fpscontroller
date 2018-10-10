@@ -171,6 +171,7 @@ public class FpsController : MonoBehaviour
         }
         _hook.Draw();
 
+        // MOVEMENT
         var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.WithY(0);
 
@@ -194,7 +195,6 @@ public class FpsController : MonoBehaviour
             if (_isGonnaJump)
             {
                 // Jump away
-                _isGonnaJump = false;
                 _velocity.y = JumpStrength;
             }
             else
