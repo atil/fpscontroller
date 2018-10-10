@@ -11,7 +11,6 @@ public class MouseLook
     private const float Sensitivity = 2f;
     private readonly Transform _cam;
     private float _pitch;
-    private float _yaw;
 
     public MouseLook(Transform camTransform)
     {
@@ -19,25 +18,21 @@ public class MouseLook
         _pitchLimits = new Vector2(-89f, 89f);
     }
 
-    public Vector3 Update()
+    public Vector3 Update(float dt)
     {
         _pitch -= Sensitivity * Input.GetAxis("Mouse Y");
-        _yaw += Sensitivity * Input.GetAxis("Mouse X");
-
         _pitch = Mathf.Clamp(_pitch, _pitchLimits.x, _pitchLimits.y);
-
-        // Don't slerp. We want sharp rotation
-        _cam.localRotation = Quaternion.Euler(_pitch, _yaw, 0f);
+        
+        var targetRot = Quaternion.Euler(_pitch, Sensitivity * Input.GetAxis("Mouse X"), 0f);
+        _cam.localRotation = Quaternion.Slerp(_cam.localRotation, targetRot, dt * 200);
 
         return _cam.forward;
-
     }
 
     // Look at straight ahead to the given world position
+    // TODO: Doesn't look straight ahead
     public void LookAt(Vector3 worldPos)
     {
-        var q = Quaternion.LookRotation(worldPos - _cam.position);
-        _yaw = q.eulerAngles.y;
         _pitch = 0; 
     }
 }
