@@ -46,7 +46,7 @@ public class FpsController : MonoBehaviour
     private const float GroundAccelerationCoeff = 500.0f;
 
     // How fast the controller accelerates while it's not grounded
-    private const float AirAccelCoeff = 1.5f;
+    private const float AirAccelCoeff = 1f;
 
     // Air deceleration occurs when the player gives an input that's not aligned with the current velocity
     private const float AirDecelCoeff = 1.5f;
@@ -92,6 +92,8 @@ public class FpsController : MonoBehaviour
     // Caching...
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
 
+    private Transform _ghostJumpRayPosition;
+
     // Some information to persist
     private bool _isGroundedInPrevFrame; // ...between frames
     private bool _isGonnaJump; // ...between FixedUpdate() and Update()
@@ -103,6 +105,7 @@ public class FpsController : MonoBehaviour
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
         _mouseLook = new MouseLook(_camTransform);
+        _ghostJumpRayPosition = _groundedRayPositions.Last();
     }
 
     // Only for debug drawing
@@ -381,10 +384,9 @@ public class FpsController : MonoBehaviour
         bool isGrounded = false;
         foreach (var t in _groundedRayPositions)
         {
-            // The last one is reserved for hollow jumps
+            // The last one is reserved for ghost jumps
             // Don't check that one if already on the ground
-            // TODO: Last one should be cached
-            if (t == _groundedRayPositions.Last() && isGrounded)
+            if (t == _ghostJumpRayPosition && isGrounded)
             {
                 continue;
             }
