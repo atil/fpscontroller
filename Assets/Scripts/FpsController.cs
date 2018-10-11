@@ -223,21 +223,24 @@ public class FpsController : MonoBehaviour
             _velocity.y -= Gravity * dt;
         }
 
-        var collisionDisplacement = ResolveCollisions(ref _velocity);
-
-        _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
-        _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
-
         var displacement = _velocity * dt;
-
+        
         // If we're moving too fast, make sure we don't hollow through any collider
         if (displacement.magnitude > _collisionVolume.radius)
         {
             ClampDisplacement(ref _velocity, ref displacement, _transform.position);
         }
 
-        _transform.position += displacement + collisionDisplacement;
+        _transform.position += displacement;
+
+        var collisionDisplacement = ResolveCollisions(ref _velocity);
+
+        _transform.position += collisionDisplacement;
         _isGroundedInPrevFrame = isGrounded;
+
+        _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
+        _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
+
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
