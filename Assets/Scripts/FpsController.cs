@@ -383,6 +383,7 @@ public class FpsController : MonoBehaviour
         {
             // The last one is reserved for hollow jumps
             // Don't check that one if already on the ground
+            // TODO: Last one should be cached
             if (t == _groundedRayPositions.Last() && isGrounded)
             {
                 continue;
