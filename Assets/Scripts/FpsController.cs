@@ -111,9 +111,6 @@ public class FpsController : MonoBehaviour
     // Only for debug drawing
     private void OnGUI()
     {
-        GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 50, 100, 40),
-            _isGroundedInPrevFrame.ToString());
-
         if (!_debugInfo)
         {
             return;
