@@ -23,7 +23,7 @@ public static class Util
 
     public static Vector3 ToHorizontal(this Vector3 v)
     {
-        return Vector3.ProjectOnPlane(v, Vector3.up);
+        return Vector3.ProjectOnPlane(v, Gravity.Down);
     }
 
     public static Vector3 TransformDirectionHorizontal(this Transform t, Vector3 v)

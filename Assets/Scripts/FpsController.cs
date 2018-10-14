@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEditor.Graphs;
 using UnityEngine;
 
 /// <summary>
@@ -66,7 +67,7 @@ public class FpsController : MonoBehaviour
     private const float JumpStrength = 8f;
 
     // yeah...
-    private const float Gravity = 24f;
+    private const float GravityAmount = 24f;
 
     // How precise the controller can change direction while not grounded 
     private const float AirControlPrecision = 16f;
@@ -80,31 +81,29 @@ public class FpsController : MonoBehaviour
     // EDIT: Not anymore, as Unity caches it for us.
     private Transform _transform;
 
-    // A crude way to look around, nothing fancy
-    private MouseLook _mouseLook;
-
     // The real velocity of this controller
     private Vector3 _velocity;
 
     // Raw input taken with GetAxisRaw()
     private Vector3 _moveInput;
 
+    private float _pitch = 0;
+    private const float Sensitivity = 200;
+
     // Caching...
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed
-
     private Transform _ghostJumpRayPosition;
 
     // Some information to persist
-    private bool _isGroundedInPrevFrame; // ...between frames
-    private bool _isGonnaJump; // ...between FixedUpdate() and Update()
-    private Vector3 _wishDirDebug; // ...between FixedUpdate() and OnGUI()
+    private bool _isGroundedInPrevFrame; 
+    private bool _isGonnaJump; 
+    private Vector3 _wishDirDebug;
     #endregion
 
     private void Start()
     {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
-        _mouseLook = new MouseLook(_camTransform);
         _ghostJumpRayPosition = _groundedRayPositions.Last();
     }
 
@@ -158,14 +157,17 @@ public class FpsController : MonoBehaviour
 
         //_hook.ExternalUpdate(dt, _transform.position);
 
-        var mouseLookForward = _mouseLook.Update(dt);
-        var targetRot = Quaternion.LookRotation(mouseLookForward.WithY(0), Vector3.up); // Only rotate vertically
-        _transform.rotation = Quaternion.Slerp(_transform.rotation, targetRot, dt * 200);
-
+        // Mouse look
+        _pitch += Input.GetAxis("Mouse Y") * -Sensitivity * dt;
+        _pitch = Mathf.Clamp(_pitch, -89, 89);
+        _camTransform.localRotation = Quaternion.Euler(Vector3.right * _pitch);
+        _transform.rotation *= Quaternion.Euler(Input.GetAxis("Mouse X") * Sensitivity * dt * Vector3.up);
+        
         // Reset player -- makes testing much easier
         if (Input.GetKeyDown(KeyCode.R))
         {
-            _transform.position = Vector3.zero + Vector3.up * 2f;
+            Gravity.Set(Vector3.down);
+            _transform.position = new Vector3(0, 5, 0);
             _velocity = Vector3.forward;
             _hook.ResetHook();
         }
@@ -173,7 +175,7 @@ public class FpsController : MonoBehaviour
 
         // MOVEMENT
         var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
-        _wishDirDebug = wishDir.WithY(0);
+        _wishDirDebug = wishDir.ToHorizontal();
 
         Vector3 groundNormal;
         var isGrounded = IsGrounded(out groundNormal);
@@ -183,8 +185,6 @@ public class FpsController : MonoBehaviour
         if (isGrounded) // Ground move
         {
             // Don't apply friction if just landed or about to jump
-            // TODO: Actually this can be extended to multiple frames, to make it easier
-            // Currently you have to catch that frame to be able to bhop
             if (_isGroundedInPrevFrame && !_isGonnaJump)
             {
                 ApplyFriction(ref _velocity, dt);
@@ -192,17 +192,13 @@ public class FpsController : MonoBehaviour
 
             Accelerate(ref _velocity, wishDir, GroundAccelerationCoeff, dt);
 
+            // Crop up horizontal velocity component
+            _velocity = Vector3.ProjectOnPlane(_velocity, groundNormal);
             if (_isGonnaJump)
             {
                 // Jump away
-                _velocity.y = JumpStrength;
+                _velocity += -Gravity.Down * JumpStrength;
             }
-            else
-            {
-                // If still on the ground, adjust the velocity in accordance with the slope
-                _velocity = Vector3.ProjectOnPlane(_velocity, groundNormal);
-            }
-
         }
         else // Air move
         {
@@ -217,7 +213,7 @@ public class FpsController : MonoBehaviour
                 ApplyAirControl(ref _velocity, wishDir, dt);
             }
 
-            _velocity.y -= Gravity * dt;
+            _velocity += Gravity.Down * (GravityAmount * dt);
         }
 
         var displacement = _velocity * dt;
@@ -238,6 +234,12 @@ public class FpsController : MonoBehaviour
         _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
         _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
 
+        // Testing
+        //if (Input.GetKeyDown(KeyCode.G))
+        //{
+        //    Gravity.Set(Vector3.right);
+        //    _transform.rotation = Quaternion.LookRotation(Gravity.Forward, -Gravity.Down);
+        //}
     }
 
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
@@ -379,7 +381,7 @@ public class FpsController : MonoBehaviour
     // If one of the rays hit, we're considered to be grounded
     private bool IsGrounded(out Vector3 groundNormal)
     {
-        groundNormal = Vector3.up;
+        groundNormal = -Gravity.Down;
 
         bool isGrounded = false;
         foreach (var t in _groundedRayPositions)
@@ -392,7 +394,7 @@ public class FpsController : MonoBehaviour
             }
 
             RaycastHit hit;
-            if (Physics.Raycast(t.position, Vector3.down, out hit, 0.51f, ~_excludedLayers))
+            if (Physics.Raycast(t.position, Gravity.Down, out hit, 0.51f, ~_excludedLayers))
             {
                 groundNormal = hit.normal;
                 isGrounded = true;
@@ -417,7 +419,7 @@ public class FpsController : MonoBehaviour
     {
         _transform.position = t.position + Vector3.up * 0.5f;
         _camTransform.position = _transform.position;
-        _mouseLook.LookAt(t.position + t.forward);
         _velocity = t.TransformDirection(Vector3.forward);
     }
+
 }

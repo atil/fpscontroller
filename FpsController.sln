@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2017
+# Visual Studio 15
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fpscontroller.Plugins", "fpscontroller.Plugins.csproj", "{AFBA7AAB-09AE-ABBE-E0A8-523ED7EE7FD4}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "fpscontroller", "fpscontroller.csproj", "{35A493B7-9E19-1C26-E7A7-AE9D88FAFF88}"
