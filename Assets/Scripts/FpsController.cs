@@ -13,10 +13,7 @@ public class FpsController : MonoBehaviour
     [SerializeField]
     private Transform _camTransform;
 
-    // Collision resolving is done with respect to these volumes
-    // There are more than one
-    // Because apart from the main capsule itself,
-    // another one is needed for allowing 'ghost jumps'
+    // Collision resolving is done with respect to this volume
     [SerializeField]
     private CapsuleCollider _collisionVolume;
 
@@ -78,7 +75,7 @@ public class FpsController : MonoBehaviour
 
     #region Fields
     // Caching this always a good practice
-    // EDIT: Not anymore, as Unity caches it for us.
+    // TODO: Not anymore, as Unity caches it for us.
     private Transform _transform;
 
     // The real velocity of this controller
@@ -87,7 +84,8 @@ public class FpsController : MonoBehaviour
     // Raw input taken with GetAxisRaw()
     private Vector3 _moveInput;
 
-    private float _pitch = 0;
+    // Vertical look
+    private float _pitch = 0; // We keep track of this value since we want to clamp it
     private const float Sensitivity = 200;
 
     // Caching...
