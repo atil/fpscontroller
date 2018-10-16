@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.Graphs;
 using UnityEngine;
 
 /// <summary>
@@ -86,7 +85,7 @@ public class FpsController : MonoBehaviour
 
     // Vertical look
     private float _pitch = 0; // We keep track of this value since we want to clamp it
-    private const float Sensitivity = 200;
+    private const float Sensitivity = 150;
 
     // Caching...
     private readonly Collider[] _overlappingColliders = new Collider[10]; // Hope no more is needed

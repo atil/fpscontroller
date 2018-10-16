@@ -419,7 +419,7 @@ namespace Sabresaurus.SabreCSG
 
 				// If we've selected a brush that isn't a prefab in the project 
 				if(matchedBrush != null
-					&& !(PrefabUtility.GetPrefabParent(matchedBrush.gameObject) == null 
+					&& !(PrefabUtility.GetCorrespondingObjectFromSource(matchedBrush.gameObject) == null 
 						&& PrefabUtility.GetPrefabObject(matchedBrush.transform) != null))
 				{
 					primitiveBrushes.Add(matchedBrush);
@@ -892,7 +892,7 @@ namespace Sabresaurus.SabreCSG
 			for (int i = 0; i < Selection.gameObjects.Length; i++) 
 			{
 				// Skip any selected prefabs in the project window
-				if(PrefabUtility.GetPrefabParent(Selection.gameObjects[i]) == null 
+				if(PrefabUtility.GetCorrespondingObjectFromSource(Selection.gameObjects[i]) == null 
 					&& PrefabUtility.GetPrefabObject(Selection.gameObjects[i].transform) != null)
 				{
 					continue;
