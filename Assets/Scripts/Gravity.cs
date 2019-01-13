@@ -8,6 +8,7 @@ public static class Gravity
 {
     public static Vector3 Down { get; private set; }
     public static Vector3 Forward { get; private set; }
+    public static Vector3 Up { get { return -Down; } }
 
     static Gravity()
     {

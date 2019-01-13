@@ -26,6 +26,11 @@ public static class Util
         return Vector3.ProjectOnPlane(v, Gravity.Down);
     }
 
+	public static float VerticalComponent(this Vector3 v)
+    {
+        return Vector3.Dot(v, Gravity.Up);
+    }
+	
     public static Vector3 TransformDirectionHorizontal(this Transform t, Vector3 v)
     {
         return t.TransformDirection(v).ToHorizontal().normalized;

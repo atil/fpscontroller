@@ -285,9 +285,10 @@ public class FpsController : MonoBehaviour
 
     private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir, float dt)
     {
-        // This only happens in the horizontal plane
-        var playerDirHorz = playerVelocity.WithY(0).normalized;
-        var playerSpeedHorz = playerVelocity.WithY(0).magnitude;
+         // This only happens in the horizontal plane
+        // TODO: Verify that these work with various gravity values
+        var playerDirHorz = playerVelocity.ToHorizontal().normalized;
+        var playerSpeedHorz = playerVelocity.ToHorizontal().magnitude;
 
         var dot = Vector3.Dot(playerDirHorz, accelDir);
         if (dot > 0)
@@ -296,10 +297,8 @@ public class FpsController : MonoBehaviour
 
             // CPMA thingy:
             // If we want pure forward movement, we have much more air control
-            // Of course this only happens when we're not hooked
-            var accelDirLocal = _camTransform.InverseTransformDirectionHorizontal(accelDir);
-            var isPureForward = Mathf.Abs(accelDirLocal.x) < 0.0001 && Mathf.Abs(accelDirLocal.z) > 0;
-            if (isPureForward && _hook.State == HookState.Off)
+            var isPureForward = Mathf.Abs(_moveInput.x) < 0.0001 && Mathf.Abs(_moveInput.z) > 0;
+            if (isPureForward)
             {
                 k *= AirControlAdditionForward;
             }
@@ -309,7 +308,7 @@ public class FpsController : MonoBehaviour
             playerDirHorz.Normalize();
 
             // Assign new direction, without touching the vertical speed
-            playerVelocity = (playerDirHorz * playerSpeedHorz).WithY(playerVelocity.y);
+            playerVelocity = (playerDirHorz * playerSpeedHorz).ToHorizontal() + Gravity.Up * playerVelocity.VerticalComponent();
         }
 
     }
