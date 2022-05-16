@@ -11,3 +11,5 @@ obj
 *.config
 UserSettings
 packages-lock.json
+BillingMode.json
+BillingMode.json.meta
