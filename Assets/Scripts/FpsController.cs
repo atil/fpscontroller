@@ -9,25 +9,25 @@ public class FpsController : MonoBehaviour
     #region Drag Drop
     [Header("Components")]
     [SerializeField]
-    private Transform _camTransform;
+    private Transform _camTransform = default;
 
     // Collision resolving is done with respect to this volume
     [SerializeField]
-    private CapsuleCollider _collisionVolume;
+    private CapsuleCollider _collisionVolume = default;
 
     // Collision will not happend with these layers
     // One of them has to be this controller's own layer
     [SerializeField]
-    private LayerMask _excludedLayers;
+    private LayerMask _excludedLayers = default;
 
     [SerializeField]
-    private Footsteps _footsteps;
+    private Footsteps _footsteps = default;
 
     [SerializeField]
-    private bool _debugInfo;
+    private bool _debugInfo = default;
 
     [SerializeField]
-    private List<Transform> _groundedRayPositions;
+    private List<Transform> _groundedRayPositions = default;
     #endregion
 
     #region Movement Parameters

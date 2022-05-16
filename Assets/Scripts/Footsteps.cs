@@ -6,16 +6,16 @@ public class Footsteps : MonoBehaviour
     private const float DistancePerStep = 3f;
 
     [SerializeField]
-    private AudioSource _audioSource;
+    private AudioSource _audioSource = default;
 
     [SerializeField]
-    private AudioClip[] _stepClips;
+    private AudioClip[] _stepClips = default;
 
     [SerializeField]
-    private AudioClip _jumpClip;
+    private AudioClip _jumpClip = default;
 
     [SerializeField]
-    private AudioClip _landClip;
+    private AudioClip _landClip = default;
 
     private List<AudioClip> _shuffledClips;
     private Vector3 _prevPos;
