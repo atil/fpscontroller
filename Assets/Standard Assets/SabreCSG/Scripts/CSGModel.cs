@@ -1797,7 +1797,7 @@ namespace Sabresaurus.SabreCSG
 			if(buildSettings.GenerateLightmapUVs)
 			{
 				UnityEditor.StaticEditorFlags staticFlags = UnityEditor.GameObjectUtility.GetStaticEditorFlags(newGameObject);
-				staticFlags |= UnityEditor.StaticEditorFlags.LightmapStatic;
+				staticFlags |= UnityEditor.StaticEditorFlags.ContributeGI;
 				UnityEditor.GameObjectUtility.SetStaticEditorFlags(newGameObject, staticFlags);
 			}
 		}

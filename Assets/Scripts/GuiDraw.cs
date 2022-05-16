@@ -1,8 +1,7 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 
-// Taken from http://wiki.unity3d.com/index.php?title=DrawLine
-public class Drawing
+// Taken from http://wiki.unity3d.com/index.php?title=DrawLine (the link is dead now)
+public class GuiDraw
 {
     //****************************************************************************************************
     //  static function DrawLine(rect : Rect) : void
@@ -18,7 +17,7 @@ public class Drawing
     //  
     //  DrawLine makes up for the severe lack of 2D line rendering in the Unity runtime GUI system.
     //  This function works by drawing a 1x1 texture filled with a color, which is then scaled
-    //   and rotated by altering the GUI matrix.  The matrix is restored afterwards.
+    //   and rotated by altering the GUI matrix. The matrix is restored afterwards.
     //****************************************************************************************************
 
     public static Texture2D lineTex;

@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -9,6 +7,7 @@ using UnityEngine;
 public class FpsController : MonoBehaviour
 {
     #region Drag Drop
+    [Header("Components")]
     [SerializeField]
     private Transform _camTransform;
 
@@ -35,41 +34,52 @@ public class FpsController : MonoBehaviour
     #endregion
 
     #region Movement Parameters
-
+    [Header("Movement parameters")]
     // The controller can collide with colliders within this radius
-    private const float Radius = 2f;
+    [SerializeField]
+    private float _radius = 2f;
 
     // Ad-hoc approach to make the controller accelerate faster
-    private const float GroundAccelerationCoeff = 500.0f;
+    [SerializeField]
+    private float _groundAccelerationCoeff = 500.0f;
 
     // How fast the controller accelerates while it's not grounded
-    private const float AirAccelCoeff = 1f;
+    [SerializeField]
+    private float _airAccelCoeff = 1f;
 
     // Air deceleration occurs when the player gives an input that's not aligned with the current velocity
-    private const float AirDecelCoeff = 1.5f;
+    [SerializeField]
+    private float _airDecelCoeff = 1.5f;
 
     // Along a dimension, we can't go faster than this
     // This dimension is relative to the controller, not global
     // Meaning that "max speend along X" means "max speed along 'right side' of the controller"
-    private const float MaxSpeedAlongOneDimension = 8f;
+    [SerializeField]
+    private float _maxSpeedAlongOneDimension = 8f;
 
     // How fast the controller decelerates on the grounded
-    private const float Friction = 15;
+    [SerializeField]
+    private float _friction = 15;
 
     // Stop if under this speed
-    private const float FrictionSpeedThreshold = 0.5f;
+    [SerializeField]
+    private float _frictionSpeedThreshold = 0.5f;
 
     // Push force given when jumping
-    private const float JumpStrength = 8f;
+    [SerializeField]
+    private float _jumpStrength = 8f;
 
     // yeah...
-    private const float GravityAmount = 24f;
+    [SerializeField]
+    private float _gravityAmount = 24f;
 
     // How precise the controller can change direction while not grounded 
-    private const float AirControlPrecision = 16f;
+    [SerializeField]
+    private float _airControlPrecision = 16f;
 
     // When moving only forward, increase air control dramatically
-    private const float AirControlAdditionForward = 8f;
+    [SerializeField]
+    private float _airControlAdditionForward = 8f;
     #endregion
 
     #region Fields
@@ -101,7 +111,7 @@ public class FpsController : MonoBehaviour
     {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _transform = transform;
-        _ghostJumpRayPosition = _groundedRayPositions.Last();
+        _ghostJumpRayPosition = _groundedRayPositions[_groundedRayPositions.Count - 1];
     }
 
     // Only for debug drawing
@@ -113,24 +123,24 @@ public class FpsController : MonoBehaviour
         }
 
         // Print current horizontal speed
-        var ups = _velocity;
+        Vector3 ups = _velocity;
         ups.y = 0;
         GUI.Box(new Rect(Screen.width / 2f - 50, Screen.height / 2f + 50, 100, 40),
             (Mathf.Round(ups.magnitude * 100) / 100).ToString());
 
         // Draw horizontal speed as a line
-        var mid = new Vector2(Screen.width / 2, Screen.height / 2); // Should remain integer division, otherwise GUI drawing gets screwed up
-        var v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * _velocity.WithY(0).magnitude * 10f;
+        Vector2 mid = new(Screen.width / 2, Screen.height / 2); // Should remain integer division, otherwise GUI drawing gets screwed up
+        Vector3 v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * (_velocity.WithY(0).magnitude * 10f);
         if (v.WithY(0).magnitude > 0.0001)
         {
-            Drawing.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
+            GuiDraw.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
 
         // Draw input direction
-        var w = _camTransform.InverseTransformDirectionHorizontal(_wishDirDebug) * 100;
+        Vector3 w = _camTransform.InverseTransformDirectionHorizontal(_wishDirDebug) * 100;
         if (w.magnitude > 0.001)
         {
-            Drawing.DrawLine(mid, mid + Vector2.up * -w.z + Vector2.right * w.x, Color.blue, 2f);
+            GuiDraw.DrawLine(mid, mid + Vector2.up * -w.z + Vector2.right * w.x, Color.blue, 2f);
         }
     }
 
@@ -138,7 +148,7 @@ public class FpsController : MonoBehaviour
     {
         Cursor.lockState = CursorLockMode.Locked; // Keep doing this. We don't want cursor anywhere just yet
 
-        var dt = Time.deltaTime;
+        float dt = Time.deltaTime;
 
         // We use GetAxisRaw, since we need it to feel as responsive as possible
         _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
@@ -152,7 +162,7 @@ public class FpsController : MonoBehaviour
             _isGonnaJump = false;
         }
 
-        //_hook.ExternalUpdate(dt, _transform.position);
+        // _hook.ExternalUpdate(dt, _transform.position); see GrapplingHook.cs
 
         // Mouse look
         _pitch += Input.GetAxis("Mouse Y") * -Sensitivity * dt;
@@ -171,11 +181,10 @@ public class FpsController : MonoBehaviour
         _hook.Draw();
 
         // MOVEMENT
-        var wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
+        Vector3 wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
         _wishDirDebug = wishDir.ToHorizontal();
 
-        Vector3 groundNormal;
-        var isGrounded = IsGrounded(out groundNormal);
+        bool isGrounded = IsGrounded(out Vector3 groundNormal);
 
         _footsteps.ExternalUpdate(_isGonnaJump, isGrounded, isGrounded && !_isGroundedInPrevFrame);
 
@@ -187,21 +196,21 @@ public class FpsController : MonoBehaviour
                 ApplyFriction(ref _velocity, dt);
             }
 
-            Accelerate(ref _velocity, wishDir, GroundAccelerationCoeff, dt);
+            Accelerate(ref _velocity, wishDir, _groundAccelerationCoeff, dt);
 
             // Crop up horizontal velocity component
             _velocity = Vector3.ProjectOnPlane(_velocity, groundNormal);
             if (_isGonnaJump)
             {
                 // Jump away
-                _velocity += -Gravity.Down * JumpStrength;
+                _velocity += -Gravity.Down * _jumpStrength;
             }
         }
         else // Air move
         {
             // If the input doesn't have the same facing with the current velocity
             // then slow down instead of speeding up
-            var coeff = Vector3.Dot(_velocity, wishDir) > 0 ? AirAccelCoeff : AirDecelCoeff;
+            float coeff = Vector3.Dot(_velocity, wishDir) > 0 ? _airAccelCoeff : _airDecelCoeff;
 
             Accelerate(ref _velocity, wishDir, coeff, dt);
 
@@ -210,10 +219,10 @@ public class FpsController : MonoBehaviour
                 ApplyAirControl(ref _velocity, wishDir, dt);
             }
 
-            _velocity += Gravity.Down * (GravityAmount * dt);
+            _velocity += Gravity.Down * (_gravityAmount * dt);
         }
 
-        var displacement = _velocity * dt;
+        Vector3 displacement = _velocity * dt;
         
         // If we're moving too fast, make sure we don't hollow through any collider
         if (displacement.magnitude > _collisionVolume.radius)
@@ -223,7 +232,7 @@ public class FpsController : MonoBehaviour
 
         _transform.position += displacement;
 
-        var collisionDisplacement = ResolveCollisions(ref _velocity);
+        Vector3 collisionDisplacement = ResolveCollisions(ref _velocity);
 
         _transform.position += collisionDisplacement;
         _isGroundedInPrevFrame = isGrounded;
@@ -242,10 +251,10 @@ public class FpsController : MonoBehaviour
     private void Accelerate(ref Vector3 playerVelocity, Vector3 accelDir, float accelCoeff, float dt)
     {
         // How much speed we already have in the direction we want to speed up
-        var projSpeed = Vector3.Dot(playerVelocity, accelDir);
+        float projSpeed = Vector3.Dot(playerVelocity, accelDir);
 
         // How much speed we need to add (in that direction) to reach max speed
-        var addSpeed = MaxSpeedAlongOneDimension - projSpeed;
+        float addSpeed = _maxSpeedAlongOneDimension - projSpeed;
         if (addSpeed <= 0)
         {
             return;
@@ -254,7 +263,7 @@ public class FpsController : MonoBehaviour
         // How much we are gonna increase our speed
         // maxSpeed * dt => the real deal. a = v / t
         // accelCoeff => ad hoc approach to make it feel better
-        var accelAmount = accelCoeff * MaxSpeedAlongOneDimension * dt;
+        float accelAmount = accelCoeff * _maxSpeedAlongOneDimension * dt;
 
         // If we are accelerating more than in a way that we exceed maxSpeedInOneDimension, crop it to max
         if (accelAmount > addSpeed)
@@ -267,14 +276,14 @@ public class FpsController : MonoBehaviour
 
     private void ApplyFriction(ref Vector3 playerVelocity, float dt)
     {
-        var speed = playerVelocity.magnitude;
-        if (speed <= 0.00001)
+        float speed = playerVelocity.magnitude;
+        if (speed <= 0.00001f)
         {
             return;
         }
 
-        var downLimit = Mathf.Max(speed, FrictionSpeedThreshold); // Don't drop below treshold
-        var dropAmount = speed - (downLimit * Friction * dt);
+        float downLimit = Mathf.Max(speed, _frictionSpeedThreshold); // Don't drop below treshold
+        float dropAmount = speed - (downLimit * _friction * dt);
         if (dropAmount < 0)
         {
             dropAmount = 0;
@@ -285,22 +294,22 @@ public class FpsController : MonoBehaviour
 
     private void ApplyAirControl(ref Vector3 playerVelocity, Vector3 accelDir, float dt)
     {
-         // This only happens in the horizontal plane
+        // This only happens in the horizontal plane
         // TODO: Verify that these work with various gravity values
-        var playerDirHorz = playerVelocity.ToHorizontal().normalized;
-        var playerSpeedHorz = playerVelocity.ToHorizontal().magnitude;
+        Vector3 playerDirHorz = playerVelocity.ToHorizontal().normalized;
+        float playerSpeedHorz = playerVelocity.ToHorizontal().magnitude;
 
-        var dot = Vector3.Dot(playerDirHorz, accelDir);
+        float dot = Vector3.Dot(playerDirHorz, accelDir);
         if (dot > 0)
         {
-            var k = AirControlPrecision * dot * dot * dt;
+            float k = _airControlPrecision * dot * dot * dt;
 
             // CPMA thingy:
             // If we want pure forward movement, we have much more air control
-            var isPureForward = Mathf.Abs(_moveInput.x) < 0.0001 && Mathf.Abs(_moveInput.z) > 0;
+            bool isPureForward = Mathf.Abs(_moveInput.x) < 0.0001f && Mathf.Abs(_moveInput.z) > 0;
             if (isPureForward)
             {
-                k *= AirControlAdditionForward;
+                k *= _airControlAdditionForward;
             }
 
             // A little bit closer to accelDir
@@ -317,14 +326,14 @@ public class FpsController : MonoBehaviour
     private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
         // Get nearby colliders
-        Physics.OverlapSphereNonAlloc(_transform.position, Radius + 0.1f,
+        Physics.OverlapSphereNonAlloc(_transform.position, _radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
-        var totalDisplacement = Vector3.zero;
-        var checkedColliderIndices = new HashSet<int>();
+        Vector3 totalDisplacement = Vector3.zero;
+        HashSet<int> checkedColliderIndices = new();
         
         // If the player is intersecting with that environment collider, separate them
-        for (var i = 0; i < _overlappingColliders.Length; i++)
+        for (int i = 0; i < _overlappingColliders.Length; i++)
         {
             // Two player colliders shouldn't resolve collision with the same environment collider
             if (checkedColliderIndices.Contains(i))
@@ -332,7 +341,7 @@ public class FpsController : MonoBehaviour
                 continue;
             }
 
-            var envColl = _overlappingColliders[i];
+            Collider envColl = _overlappingColliders[i];
 
             // Skip empty slots
             if (envColl == null)
@@ -340,17 +349,15 @@ public class FpsController : MonoBehaviour
                 continue;
             }
 
-            Vector3 collisionNormal;
-            float collisionDistance;
             if (Physics.ComputePenetration(
                 _collisionVolume, _collisionVolume.transform.position, _collisionVolume.transform.rotation,
                 envColl, envColl.transform.position, envColl.transform.rotation,
-                out collisionNormal, out collisionDistance))
+                out Vector3 collisionNormal, out float collisionDistance))
             {
                 // Ignore very small penetrations
                 // Required for standing still on slopes
                 // ... still far from perfect though
-                if (collisionDistance < 0.015)
+                if (collisionDistance < 0.015f)
                 {
                     continue;
                 }
@@ -366,7 +373,7 @@ public class FpsController : MonoBehaviour
         }
 
         // It's better to be in a clean state in the next resolve call
-        for (var i = 0; i < _overlappingColliders.Length; i++)
+        for (int i = 0; i < _overlappingColliders.Length; i++)
         {
             _overlappingColliders[i] = null;
         }
@@ -380,7 +387,7 @@ public class FpsController : MonoBehaviour
         groundNormal = -Gravity.Down;
 
         bool isGrounded = false;
-        foreach (var t in _groundedRayPositions)
+        foreach (Transform t in _groundedRayPositions)
         {
             // The last one is reserved for ghost jumps
             // Don't check that one if already on the ground
@@ -389,8 +396,7 @@ public class FpsController : MonoBehaviour
                 continue;
             }
 
-            RaycastHit hit;
-            if (Physics.Raycast(t.position, Gravity.Down, out hit, 0.51f, ~_excludedLayers))
+            if (Physics.Raycast(t.position, Gravity.Down, out RaycastHit hit, 0.51f, ~_excludedLayers))
             {
                 groundNormal = hit.normal;
                 isGrounded = true;
@@ -403,8 +409,7 @@ public class FpsController : MonoBehaviour
     // If there's something between the current position and the next, clamp displacement
     private void ClampDisplacement(ref Vector3 playerVelocity, ref Vector3 displacement, Vector3 playerPosition)
     {
-        RaycastHit hit;
-        if (Physics.Raycast(playerPosition, playerVelocity.normalized, out hit, displacement.magnitude, ~_excludedLayers))
+        if (Physics.Raycast(playerPosition, playerVelocity.normalized, out RaycastHit hit, displacement.magnitude, ~_excludedLayers))
         {
             displacement = hit.point - playerPosition;
         }

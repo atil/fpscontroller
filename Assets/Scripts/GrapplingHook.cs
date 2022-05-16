@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
+﻿using UnityEngine;
 
 public enum HookState
 {
@@ -13,17 +9,24 @@ public enum HookState
     Loose
 }
 
+// We had vastly improved hook feeling in another project
+// This one here is old and feels awful
+// See: https://github.com/atil/fpsmapbox/
 public class GrapplingHook : MonoBehaviour
 {
     // How strong the spring will feel
-    private const float SpringTightness = 0.5f;
+    [SerializeField]
+    private float SpringTightness = 0.5f;
 
     // The higher this number is, the quicker the spring will come to rest
-    private const float DampingCoeff = 0.01f;
+    [SerializeField]
+    private float DampingCoeff = 0.01f;
+    
+    [SerializeField]
+    private float FuelTankCapacity = 3f;
 
-    private const float FuelTankCapacity = 3f;
-
-    private const float FuelBurnRate = 1f;
+    [SerializeField]
+    private float FuelBurnRate = 1f;
 
     public HookState State { get; private set; }
 
@@ -55,8 +58,7 @@ public class GrapplingHook : MonoBehaviour
 			// Transition: Off -> Pull
             if (Input.GetMouseButtonDown(0))
             {
-                RaycastHit hit;
-                if (Physics.Raycast(_mainCamera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f)), out hit, float.MaxValue, ~_excludedLayers))
+                if (Physics.Raycast(_mainCamera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f)), out RaycastHit hit, float.MaxValue, ~_excludedLayers))
                 {
                     _springEnd = hit.point;
                     _hookVisual.gameObject.SetActive(true);
@@ -121,11 +123,11 @@ public class GrapplingHook : MonoBehaviour
             return;
         }
 
-        var springDir = (_springEnd - playerPosition).normalized;
-        var damping = playerVelocity * DampingCoeff;
+        Vector3 springDir = (_springEnd - playerPosition).normalized;
+        Vector3 damping = playerVelocity * DampingCoeff;
 
 		// The longer the hook, the stronger the pull
-        var springLength = Vector3.Distance(playerPosition, _springEnd);
+        float springLength = Vector3.Distance(playerPosition, _springEnd);
 		
 		// sqrt(sqrt(x)) feels better than pure linear (which is _the_ spring formula)
         playerVelocity += Mathf.Sqrt(Mathf.Sqrt(springLength)) * SpringTightness * springDir;
@@ -140,11 +142,11 @@ public class GrapplingHook : MonoBehaviour
             return false;
         }
 
-        var distance = Vector3.Distance(playerPosition, _springEnd);
+        float distance = Vector3.Distance(playerPosition, _springEnd);
         if (distance > _hookLength)
         {
 			// The player will have no velocity component in the hook's direction
-            var playerToEndDir = (_springEnd - playerPosition).normalized;
+            Vector3 playerToEndDir = (_springEnd - playerPosition).normalized;
             playerVelocity -= Vector3.Project(playerVelocity, playerToEndDir);
 
             displacement = playerToEndDir * (distance - _hookLength);

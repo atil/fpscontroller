@@ -77,14 +77,14 @@ namespace Sabresaurus.SabreCSG
 				if(EditorHelper.GetSceneViewCamera(sceneView) == EditorHelper.SceneViewCamera.Other)
 				{
 					sceneView.orthographic = false;
-					sceneView.m_SceneLighting = true;
+					sceneView.sceneLighting = true;
 				}
 				else
 				{
 					sceneView.orthographic = true;
-					sceneView.m_SceneLighting = false;
+					sceneView.sceneLighting = false;
 					SceneView.SceneViewState state = GetSceneViewState(sceneView);
-					state.Toggle(false);
+					state.SetAllEnabled(false);
 				}
 			}
 			SceneView.RepaintAll();

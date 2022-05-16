@@ -3,3 +3,11 @@ Library
 /Temp
 /Build
 CoreCompileInputs.cache
+Logs
+obj
+.vsconfig
+*.csproj
+*.sln
+*.config
+UserSettings
+packages-lock.json
