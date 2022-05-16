@@ -24,9 +24,6 @@ public class FpsController : MonoBehaviour
     private Footsteps _footsteps;
 
     [SerializeField]
-    private GrapplingHook _hook;
-
-    [SerializeField]
     private bool _debugInfo;
 
     [SerializeField]
@@ -83,10 +80,6 @@ public class FpsController : MonoBehaviour
     #endregion
 
     #region Fields
-    // Caching this always a good practice
-    // TODO: Not anymore, as Unity caches it for us.
-    private Transform _transform;
-
     // The real velocity of this controller
     private Vector3 _velocity;
 
@@ -110,7 +103,6 @@ public class FpsController : MonoBehaviour
     private void Start()
     {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
-        _transform = transform;
         _ghostJumpRayPosition = _groundedRayPositions[_groundedRayPositions.Count - 1];
     }
 
@@ -162,23 +154,19 @@ public class FpsController : MonoBehaviour
             _isGonnaJump = false;
         }
 
-        // _hook.ExternalUpdate(dt, _transform.position); see GrapplingHook.cs
-
         // Mouse look
         _pitch += Input.GetAxis("Mouse Y") * -Sensitivity * dt;
         _pitch = Mathf.Clamp(_pitch, -89, 89);
         _camTransform.localRotation = Quaternion.Euler(Vector3.right * _pitch);
-        _transform.rotation *= Quaternion.Euler(Input.GetAxis("Mouse X") * Sensitivity * dt * Vector3.up);
+        transform.rotation *= Quaternion.Euler(Input.GetAxis("Mouse X") * Sensitivity * dt * Vector3.up);
         
         // Reset player -- makes testing much easier
         if (Input.GetKeyDown(KeyCode.R))
         {
             Gravity.Set(Vector3.down);
-            _transform.position = new Vector3(0, 5, 0);
+            transform.position = new Vector3(0, 5, 0);
             _velocity = Vector3.forward;
-            _hook.ResetHook();
         }
-        _hook.Draw();
 
         // MOVEMENT
         Vector3 wishDir = _camTransform.TransformDirectionHorizontal(_moveInput); // We want to go in this direction
@@ -227,18 +215,15 @@ public class FpsController : MonoBehaviour
         // If we're moving too fast, make sure we don't hollow through any collider
         if (displacement.magnitude > _collisionVolume.radius)
         {
-            ClampDisplacement(ref _velocity, ref displacement, _transform.position);
+            ClampDisplacement(ref _velocity, ref displacement, transform.position);
         }
 
-        _transform.position += displacement;
+        transform.position += displacement;
 
         Vector3 collisionDisplacement = ResolveCollisions(ref _velocity);
 
-        _transform.position += collisionDisplacement;
+        transform.position += collisionDisplacement;
         _isGroundedInPrevFrame = isGrounded;
-
-        _hook.ApplyHookAcceleration(ref _velocity, _transform.position - Vector3.up * 0.4f);
-        _hook.ApplyHookDisplacement(ref _velocity, ref collisionDisplacement, _transform.position - Vector3.up * 0.4f);
 
         // Testing
         //if (Input.GetKeyDown(KeyCode.G))
@@ -326,7 +311,7 @@ public class FpsController : MonoBehaviour
     private Vector3 ResolveCollisions(ref Vector3 playerVelocity)
     {
         // Get nearby colliders
-        Physics.OverlapSphereNonAlloc(_transform.position, _radius + 0.1f,
+        Physics.OverlapSphereNonAlloc(transform.position, _radius + 0.1f,
             _overlappingColliders, ~_excludedLayers);
 
         Vector3 totalDisplacement = Vector3.zero;
@@ -418,8 +403,8 @@ public class FpsController : MonoBehaviour
     // Handy when testing
     public void ResetAt(Transform t)
     {
-        _transform.position = t.position + Vector3.up * 0.5f;
-        _camTransform.position = _transform.position;
+        transform.position = t.position + Vector3.up * 0.5f;
+        _camTransform.position = transform.position;
         _velocity = t.TransformDirection(Vector3.forward);
     }
 

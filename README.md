@@ -6,7 +6,15 @@ This Q3-inspired first person controller is made with two goals in mind:
 
 - Avoid using CharacterController and make every step of the logic as transparent as possible.
 
-References:
+## Quick start:
+
+- Unpack [the package](FpsController.unitypackage)
+
+- Add a layer "PlayerCollider" and set the player's collider to be on that layer
+
+- Add that layer to `FpsController.ExcludedLayers` on the prefab. Collision and grounded checks will ignore these layers
+
+## References:
 
 [Quake3-movement-unity](https://github.com/Zinglish/quake3-movement-unity3d/blob/master/CPMPlayer.cs)
 
