@@ -21,9 +21,6 @@ public class FpsController : MonoBehaviour
     private LayerMask _excludedLayers = default;
 
     [SerializeField]
-    private Footsteps _footsteps = default;
-
-    [SerializeField]
     private bool _debugInfo = default;
 
     [SerializeField]
@@ -77,6 +74,37 @@ public class FpsController : MonoBehaviour
     // When moving only forward, increase air control dramatically
     [SerializeField]
     private float _airControlAdditionForward = 8f;
+
+    // Keyboard and mouse input are enabled
+    [SerializeField]
+    private bool _canControl = true;
+
+    // Maybe you wanna make a Wolf3D clone?
+    [SerializeField]
+    private bool _verticalLookEnabled = true;
+
+    [SerializeField]
+    private bool _jumpEnabled = true;
+
+    [Header("Footsteps")]
+    [SerializeField]
+    private float _distancePerFootstep = 3f;
+
+    [SerializeField]
+    private AudioSource _audioSource = default;
+
+    [SerializeField]
+    private AudioClip[] _footstepClips = default;
+
+    [SerializeField]
+    private AudioClip _jumpClip = default;
+
+    [SerializeField]
+    private AudioClip _landClip = default;
+
+    private List<AudioClip> _shuffledFootstepClips;
+    private Vector3 _prevPos;
+    private float _distanceCovered;
     #endregion
 
     #region Fields
@@ -95,8 +123,8 @@ public class FpsController : MonoBehaviour
     private Transform _ghostJumpRayPosition;
 
     // Some information to persist
-    private bool _isGroundedInPrevFrame; 
-    private bool _isGonnaJump; 
+    private bool _isGroundedInPrevFrame;
+    private bool _isGonnaJump;
     private Vector3 _wishDirDebug;
     #endregion
 
@@ -104,6 +132,8 @@ public class FpsController : MonoBehaviour
     {
         Application.targetFrameRate = 60; // My laptop is shitty and burn itself to death if not for this
         _ghostJumpRayPosition = _groundedRayPositions[_groundedRayPositions.Count - 1];
+
+        _shuffledFootstepClips = new List<AudioClip>(_footstepClips);
     }
 
     // Only for debug drawing
@@ -122,8 +152,8 @@ public class FpsController : MonoBehaviour
 
         // Draw horizontal speed as a line
         Vector2 mid = new(Screen.width / 2, Screen.height / 2); // Should remain integer division, otherwise GUI drawing gets screwed up
-        Vector3 v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * (_velocity.WithY(0).magnitude * 10f);
-        if (v.WithY(0).magnitude > 0.0001)
+        Vector3 v = _camTransform.InverseTransformDirectionHorizontal(_velocity) * (_velocity.ToHorizontal().magnitude * 10f);
+        if (v.ToHorizontal().magnitude > 0.0001)
         {
             GuiDraw.DrawLine(mid, mid + Vector2.up * -v.z + Vector2.right * v.x, Color.red, 3f);
         }
@@ -142,30 +172,28 @@ public class FpsController : MonoBehaviour
 
         float dt = Time.deltaTime;
 
-        // We use GetAxisRaw, since we need it to feel as responsive as possible
-        _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
+        if (_canControl)
+        {
+            // We use GetAxisRaw, since we need it to feel as responsive as possible
+            _moveInput = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical")).normalized;
 
-        if (Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
-        {
-            _isGonnaJump = true;
-        }
-        else if (Input.GetKeyUp(KeyCode.Space))
-        {
-            _isGonnaJump = false;
-        }
+            if (_jumpEnabled && Input.GetKeyDown(KeyCode.Space) && !_isGonnaJump)
+            {
+                _isGonnaJump = true;
+            }
+            else if (Input.GetKeyUp(KeyCode.Space))
+            {
+                _isGonnaJump = false;
+            }
 
-        // Mouse look
-        _pitch += Input.GetAxis("Mouse Y") * -Sensitivity * dt;
-        _pitch = Mathf.Clamp(_pitch, -89, 89);
-        _camTransform.localRotation = Quaternion.Euler(Vector3.right * _pitch);
-        transform.rotation *= Quaternion.Euler(Input.GetAxis("Mouse X") * Sensitivity * dt * Vector3.up);
-        
-        // Reset player -- makes testing much easier
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            Gravity.Set(Vector3.down);
-            transform.position = new Vector3(0, 5, 0);
-            _velocity = Vector3.forward;
+            // Mouse look
+            if (_verticalLookEnabled)
+            {
+                _pitch += Input.GetAxis("Mouse Y") * -Sensitivity * dt;
+                _pitch = Mathf.Clamp(_pitch, -89, 89);
+                _camTransform.localRotation = Quaternion.Euler(Vector3.right * _pitch);
+            }
+            transform.rotation *= Quaternion.Euler(Input.GetAxis("Mouse X") * Sensitivity * dt * Vector3.up);
         }
 
         // MOVEMENT
@@ -174,7 +202,7 @@ public class FpsController : MonoBehaviour
 
         bool isGrounded = IsGrounded(out Vector3 groundNormal);
 
-        _footsteps.ExternalUpdate(_isGonnaJump, isGrounded, isGrounded && !_isGroundedInPrevFrame);
+        UpdateFootsteps(_isGonnaJump, isGrounded, isGrounded && !_isGroundedInPrevFrame);
 
         if (isGrounded) // Ground move
         {
@@ -211,7 +239,7 @@ public class FpsController : MonoBehaviour
         }
 
         Vector3 displacement = _velocity * dt;
-        
+
         // If we're moving too fast, make sure we don't hollow through any collider
         if (displacement.magnitude > _collisionVolume.radius)
         {
@@ -224,6 +252,7 @@ public class FpsController : MonoBehaviour
 
         transform.position += collisionDisplacement;
         _isGroundedInPrevFrame = isGrounded;
+
 
         // Testing
         //if (Input.GetKeyDown(KeyCode.G))
@@ -316,7 +345,7 @@ public class FpsController : MonoBehaviour
 
         Vector3 totalDisplacement = Vector3.zero;
         HashSet<int> checkedColliderIndices = new();
-        
+
         // If the player is intersecting with that environment collider, separate them
         for (int i = 0; i < _overlappingColliders.Length; i++)
         {
@@ -400,6 +429,33 @@ public class FpsController : MonoBehaviour
         }
     }
 
+    private void UpdateFootsteps(bool isGonnaJump, bool isGrounded, bool isLandedThisFrame)
+    {
+        if (_distanceCovered > _distancePerFootstep)
+        {
+            _distanceCovered = 0;
+
+            _audioSource.PlayOneShot(_shuffledFootstepClips[0]);
+            _shuffledFootstepClips.Shuffle();
+        }
+
+        if (isGonnaJump && isGrounded)
+        {
+            _audioSource.PlayOneShot(_jumpClip);
+        }
+
+        if (isLandedThisFrame && !isGonnaJump)
+        {
+            _audioSource.PlayOneShot(_landClip);
+        }
+
+        if (isGrounded)
+        {
+            _distanceCovered += Vector3.Distance(_prevPos.ToHorizontal(), transform.position.ToHorizontal());
+        }
+        _prevPos = transform.position;
+    }
+
     // Handy when testing
     public void ResetAt(Transform t)
     {
@@ -407,5 +463,64 @@ public class FpsController : MonoBehaviour
         _camTransform.position = transform.position;
         _velocity = t.TransformDirection(Vector3.forward);
     }
+}
+
+public static class Gravity
+{
+    public static Vector3 Down { get; private set; }
+    public static Vector3 Forward { get; private set; }
+    public static Vector3 Up { get { return -Down; } }
+
+    static Gravity()
+    {
+        Down = Vector3.down;
+        Forward = Vector3.forward;
+    }
+
+    public static void Set(Vector3 down)
+    {
+        // Gravity will rotate around this axis with this amount
+        Vector3 axis = Vector3.Cross(Down, down);
+        float angle = Vector3.Angle(Down, down);
+
+        Down = down;
+        Forward = Quaternion.AngleAxis(angle, axis) * Forward;
+    }
+}
+
+public static class FpsControllerExtensions
+{
+
+    public static Vector3 ToHorizontal(this Vector3 v)
+    {
+        return Vector3.ProjectOnPlane(v, Gravity.Down);
+    }
+
+    public static float VerticalComponent(this Vector3 v)
+    {
+        return Vector3.Dot(v, Gravity.Up);
+    }
+
+    public static Vector3 TransformDirectionHorizontal(this Transform t, Vector3 v)
+    {
+        return t.TransformDirection(v).ToHorizontal().normalized;
+    }
+
+    public static Vector3 InverseTransformDirectionHorizontal(this Transform t, Vector3 v)
+    {
+        return t.InverseTransformDirection(v).ToHorizontal().normalized;
+    }
+
+    public static void Shuffle<T>(this IList<T> list)
+    {
+        int n = list.Count;
+        while (n > 1)
+        {
+            n--;
+            int k = Random.Range(0, n + 1);
+            (list[n], list[k]) = (list[k], list[n]); // Swap
+        }
+    }
 
 }
+
